@@ -38,3 +38,23 @@ EOF
 function prepare_uri() {
     uri="mongodb://${username}:${password}@${host}/${database}?authSource=${auth_db}"
 }
+
+
+function check_zip_flags() {
+    zip=""
+    secure=""
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --zip)
+                zip=1
+                ;;
+            --secure)
+                secure=1
+                ;;
+            *)
+                show_colored_message error "Unknown flag: $1"
+                exit 1
+        esac
+        shift
+    done
+}

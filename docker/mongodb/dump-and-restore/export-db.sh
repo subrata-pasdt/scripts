@@ -52,9 +52,17 @@ check_last_command_status "Error removing temporary files" "Temporary files remo
 
 
 # Zip the entire directory
-PASSWORD=$(date '+%d%b%Y' | awk '{print $1 tolower(substr($2, 1, 1)) tolower(substr($2, 2, 1)) toupper(substr($2, 3, 1)) $3}')
 ZIP_NAME="$backup_dir.zip"
-zip -r $ZIP_NAME $backup_dir/ -P $PASSWORD;
+if [ "$zip" -eq 1 ]; then
+  if [ "$secure" -eq 1 ]; then
+    PASSWORD=$(date '+%d%b%Y' | awk '{print $1 tolower(substr($2, 1, 1)) tolower(substr($2, 2, 1)) toupper(substr($2, 3, 1)) $3}')
+    zip -r $ZIP_NAME $backup_dir/ -P $PASSWORD
+  else
+    zip -r $ZIP_NAME $backup_dir/
+  fi
+else
+  show_colored_message info "Skipping zip"
+fi
 
 
 
