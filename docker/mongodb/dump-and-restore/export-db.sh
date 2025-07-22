@@ -18,7 +18,7 @@ check_last_command_status "Error creating backup directory" "Backup directory cr
 
 show_colored_message info "Running backup..."
 
-docker exec -it ${container_name} bash -c "mongodump --uri '${uri}' --out '${backup_dir}'"
+docker exec -it ${container_name} bash -c "mongodump --uri '${uri}' --out '${backup_dir}' &> /dev/null"
 
 check_last_command_status "Error generating backup" "Backup generated successfully..."
 

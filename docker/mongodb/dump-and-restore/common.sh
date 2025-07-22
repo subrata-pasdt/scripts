@@ -58,3 +58,18 @@ function check_zip_flags() {
         shift
     done
 }
+
+
+
+function check_is_primary_container() {
+    show_colored_message info "Checking if container is primary..."
+
+    primary=$(docker exec -it ${container_name} bash -c "mongo --eval 'print(rs.isMaster().ismaster)'")
+
+    if [ "$primary" == "true" ]; then
+        show_colored_message success "Container is primary"
+    else
+        show_colored_message warning "Container is not primary"
+        exit 1
+    fi
+}

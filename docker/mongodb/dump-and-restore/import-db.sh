@@ -5,7 +5,7 @@ source <(curl -s https://raw.githubusercontent.com/subrata-pasdt/scripts/main/do
 
 show_header "MongoDB Import" "Script to import a MongoDB database" "${current_date}" "${script_version}"
 check_config_file
-
+check_is_primary_container
 
 
 uri="mongodb://${username}:${password}@${host}/${database}?authSource=admin"
@@ -39,7 +39,7 @@ check_last_command_status "Error copying backup" "Backup copied to ${container_n
 
 show_colored_message info "Running restoration..."
 
-docker exec -it ${container_name} bash -c "mongorestore --uri '${uri}' '${backup_dir}'"
+docker exec -it ${container_name} bash -c "mongorestore --uri '${uri}' '${backup_dir}' &> /dev/null"
 
 check_last_command_status "Error restoring database : ${database}" "${database} restored successfully..."
 
