@@ -18,12 +18,12 @@ function check_config_file() {
         show_colored_message info "Creating config file..."
         cat > config.json <<EOF
 {
-"user": "root",
-"password": "example",
-"host": "localhost",
-"database": "dbname",
-"container": "mongo1",
-"backup_dir": "backup_dbname_$(date +%d-%m-%Y_%H_%M)"
+    "user": "root",
+    "password": "example",
+    "host": "localhost",
+    "database": "dbname",
+    "container": "mongo1",
+    "backup_dir": "backup_dbname_$(date +%d-%m-%Y_%H_%M)"
 }
 EOF
 
@@ -36,6 +36,10 @@ EOF
 
 
 function prepare_uri() {
+    if [ -z "$auth_db" ] || [ -z "$(echo "$auth_db" | tr -d ' ')" ]; then
+        auth_db="$database"
+    fi
+
     uri="mongodb://${username}:${password}@${host}/${database}?authSource=${auth_db}"
 }
 
