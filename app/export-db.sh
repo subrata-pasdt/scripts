@@ -129,6 +129,7 @@ fi
 
 
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+EMAIL_TIMESTAMP=$(date "+%Y-%m-%d %H:%M:%S")
 BACKUP_NAME="mongo_backup_$TIMESTAMP"
 HOST_BACKUP_PATH="$BACKUP_DIR/$BACKUP_NAME"
 ZIP_FILE="$BACKUP_NAME.zip"
@@ -159,8 +160,8 @@ if [ $? -ne 0 ]; then
     --to_email "$TO_EMAIL" \
     --cc "$CC_EMAILS" \
     --bcc "$BCC_EMAILS" \
-    --subject "⛔ MongoDB Backup Failed for $MONGO_DBNAME - $TIMESTAMP" \
-    --body "Failed to run mongodump on docker container at $TIMESTAMP."
+    --subject "⛔ MongoDB Backup Failed for $MONGO_DBNAME - $EMAIL_TIMESTAMP" \
+    --body "Failed to run mongodump on docker container at $EMAIL_TIMESTAMP."
   
   exit 1
 fi
@@ -183,8 +184,8 @@ if [ $? -ne 0 ]; then
     --to_email "$TO_EMAIL" \
     --cc "$CC_EMAILS" \
     --bcc "$BCC_EMAILS" \
-    --subject "⛔ MongoDB Backup Failed for $MONGO_DBNAME - $TIMESTAMP" \
-    --body "Backup $ZIP_FILE unable to upload to S3 bucket $S3_BUCKET at $TIMESTAMP."
+    --subject "⛔ MongoDB Backup Failed for $MONGO_DBNAME - $EMAIL_TIMESTAMP" \
+    --body "Backup $ZIP_FILE unable to upload to S3 bucket $S3_BUCKET at $EMAIL_TIMESTAMP."
 
   exit 1
 fi
@@ -207,5 +208,5 @@ curl -s "$MAIL_SCRIPT_URL" | bash -s -- \
   --to_email "$TO_EMAIL" \
   --cc "$CC_EMAILS" \
   --bcc "$BCC_EMAILS" \
-  --subject "✅ MongoDB Backup Completed for $MONGO_DBNAME - $TIMESTAMP" \
-  --body "Backup $ZIP_FILE Completed and uploaded to S3 bucket $S3_BUCKET at $TIMESTAMP."
+  --subject "✅ MongoDB Backup Completed for $MONGO_DBNAME - $EMAIL_TIMESTAMP" \
+  --body "Backup $ZIP_FILE Completed and uploaded to S3 bucket $S3_BUCKET at $EMAIL_TIMESTAMP."
