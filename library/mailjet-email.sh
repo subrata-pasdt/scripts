@@ -64,7 +64,7 @@ read -r -d '' MAILJET_PAYLOAD <<EOF
         "Email": "$FROM_EMAIL",
         "Name": "PASDT - Email Notification"
       },
-      "To": $TO_JSON$( [ "$CC_JSON" != "null" ] && echo ",\n      \"Cc\": $CC_JSON" )$( [ "$BCC_JSON" != "null" ] && echo ",\n      \"Bcc\": $BCC_JSON" ),
+      "To": $TO_JSON$( [ "$CC_JSON" != "null" ] && echo ",      \"Cc\": $CC_JSON" )$( [ "$BCC_JSON" != "null" ] && echo ",      \"Bcc\": $BCC_JSON" ),
       "Subject": "$EMAIL_SUBJECT",
       "TextPart": $EMAIL_BODY_ESCAPED
     }
