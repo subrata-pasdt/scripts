@@ -91,6 +91,10 @@ MAILJET_PAYLOAD+=$',
 '
 
 
+
+echo $MAILJET_PAYLOAD
+
+
 # read -r -d '' MAILJET_PAYLOAD <<EOF
 # {
 #   "Messages": [
