@@ -53,6 +53,11 @@ else
   EMAIL_BODY_ESCAPED=$(printf '%s' "$EMAIL_BODY" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()))')
 fi
 
+
+
+
+
+
 read -r -d '' MAILJET_PAYLOAD <<EOF
 {
   "Messages": [
@@ -65,24 +70,55 @@ read -r -d '' MAILJET_PAYLOAD <<EOF
 EOF
 
 if [ "$CC_JSON" != "null" ]; then
-  MAILJET_PAYLOAD+=$',\n      "Cc": '"$CC_JSON"
+  MAILJET_PAYLOAD+=$'\n      "Cc": '"$CC_JSON"
+  # Add a comma if Bcc exists or to separate from following Subject field
+  if [ "$BCC_JSON" != "null" ]; then
+    MAILJET_PAYLOAD+=','
+  fi
+  MAILJET_PAYLOAD+=$'\n'
 fi
 
 if [ "$BCC_JSON" != "null" ]; then
-  MAILJET_PAYLOAD+=$',
-       "Bcc": '"$BCC_JSON"
+  MAILJET_PAYLOAD+=$'\n      "Bcc": '"$BCC_JSON"$'\n'
 fi
 
-
-
-
-MAILJET_PAYLOAD+=$',
+MAILJET_PAYLOAD+=$', 
       "Subject": "'"$EMAIL_SUBJECT"'",
       "TextPart": '"$EMAIL_BODY_ESCAPED"'
     }
   ]
 }
 '
+
+
+# read -r -d '' MAILJET_PAYLOAD <<EOF
+# {
+#   "Messages": [
+#     {
+#       "From": {
+#         "Email": "$FROM_EMAIL",
+#         "Name": "PASDT - Email Notification"
+#       },
+#       "To": $TO_JSON,
+# EOF
+
+# if [ "$CC_JSON" != "null" ]; then
+#   MAILJET_PAYLOAD+=$'\n      "Cc": '"$CC_JSON"," $'\n'
+# fi
+
+# if [ "$BCC_JSON" != "null" ]; then
+#   MAILJET_PAYLOAD+=$'
+#         "Bcc": '"$BCC_JSON"'
+# fi
+
+
+# MAILJET_PAYLOAD+=$'
+#       "Subject": "'"$EMAIL_SUBJECT"'",
+#       "TextPart": '"$EMAIL_BODY_ESCAPED"'
+#     }
+#   ]
+# }
+# '
 
 curl -s -X POST https://api.mailjet.com/v3.1/send \
   -u "$MAILJET_API_KEY:$MAILJET_API_SECRET" \
