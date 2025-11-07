@@ -56,8 +56,6 @@ fi
 
 
 
-
-
 read -r -d '' MAILJET_PAYLOAD <<EOF
 {
   "Messages": [
@@ -66,29 +64,14 @@ read -r -d '' MAILJET_PAYLOAD <<EOF
         "Email": "$FROM_EMAIL",
         "Name": "PASDT - Email Notification"
       },
-      "To": $TO_JSON,
-EOF
-
-if [ "$CC_JSON" != "null" ]; then
-  MAILJET_PAYLOAD+=$'\n      "Cc": '"$CC_JSON"
-  # Add a comma if Bcc exists or to separate from following Subject field
-  if [ "$BCC_JSON" != "null" ]; then
-    MAILJET_PAYLOAD+=','
-  fi
-  MAILJET_PAYLOAD+=$'\n'
-fi
-
-if [ "$BCC_JSON" != "null" ]; then
-  MAILJET_PAYLOAD+=$'\n      "Bcc": '"$BCC_JSON"$'\n'
-fi
-
-MAILJET_PAYLOAD+=$', 
-      "Subject": "'"$EMAIL_SUBJECT"'",
-      "TextPart": '"$EMAIL_BODY_ESCAPED"'
+      "To": $TO_JSON$( [ "$CC_JSON" != "null" ] && echo ",\n      \"Cc\": $CC_JSON" )$( [ "$BCC_JSON" != "null" ] && echo ",\n      \"Bcc\": $BCC_JSON" ),
+      "Subject": "$EMAIL_SUBJECT",
+      "TextPart": $EMAIL_BODY_ESCAPED
     }
   ]
 }
-'
+EOF
+
 
 
 
