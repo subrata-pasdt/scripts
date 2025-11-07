@@ -62,7 +62,7 @@ read -r -d '' MAILJET_PAYLOAD <<EOF
     {
       "From": {
         "Email": "$FROM_EMAIL",
-        "Name": "PASDT - Email Notification"
+        "Name": "PAS Digital Technologies"
       },
       "To": $TO_JSON$( [ "$CC_JSON" != "null" ] && echo ",      \"Cc\": $CC_JSON" )$( [ "$BCC_JSON" != "null" ] && echo ",      \"Bcc\": $BCC_JSON" ),
       "Subject": "$EMAIL_SUBJECT",
@@ -75,37 +75,7 @@ EOF
 
 
 
-echo $MAILJET_PAYLOAD
-
-
-# read -r -d '' MAILJET_PAYLOAD <<EOF
-# {
-#   "Messages": [
-#     {
-#       "From": {
-#         "Email": "$FROM_EMAIL",
-#         "Name": "PASDT - Email Notification"
-#       },
-#       "To": $TO_JSON,
-# EOF
-
-# if [ "$CC_JSON" != "null" ]; then
-#   MAILJET_PAYLOAD+=$'\n      "Cc": '"$CC_JSON"," $'\n'
-# fi
-
-# if [ "$BCC_JSON" != "null" ]; then
-#   MAILJET_PAYLOAD+=$'
-#         "Bcc": '"$BCC_JSON"'
-# fi
-
-
-# MAILJET_PAYLOAD+=$'
-#       "Subject": "'"$EMAIL_SUBJECT"'",
-#       "TextPart": '"$EMAIL_BODY_ESCAPED"'
-#     }
-#   ]
-# }
-# '
+# echo $MAILJET_PAYLOAD
 
 curl -s -X POST https://api.mailjet.com/v3.1/send \
   -u "$MAILJET_API_KEY:$MAILJET_API_SECRET" \

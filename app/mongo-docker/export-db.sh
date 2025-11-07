@@ -9,6 +9,10 @@
 #     █████           █████   █████   ░░█████████     ██████████         █████   
 #    ░░░░░           ░░░░░   ░░░░░     ░░░░░░░░░     ░░░░░░░░░░         ░░░░░    
 #    Subrata Kumar De
+#    07/11/2025
+
+source <(curl -s https://raw.githubusercontent.com/subrata-pasdt/scripts/main/app/mongo-docker/helper.sh)
+
 
 
 CONFIG_FILE="$1"
@@ -18,18 +22,6 @@ if [ -z "$1" ]; then
   echo "Usage: $0 <config_file>"
   exit 1
 fi
-
-
-
-
-# Validate email formats for FROM_EMAIL and TO_EMAIL (basic check)
-validate_email() {
-  local email=$1
-  if ! [[ "$email" =~ ^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$ ]]; then
-    echo "Invalid email format: $email"
-    return 1
-  fi
-}
 
 
 generate_config_file(){
@@ -55,8 +47,8 @@ MAILJET_API_KEY="your_mailjet_api_key"
 MAILJET_API_SECRET="your_mailjet_api_secret"
 FROM_EMAIL="from@example.com"
 TO_EMAIL="to@example.com"
-CC_EMAILS="cc1@example.com,cc2@example.com" # can be empty
-BCC_EMAILS="bcc1@example.com,bcc2@example.com" # can be empty
+CC_EMAILS="cc1@example.com,cc2@example.com" # optional / can be empty
+BCC_EMAILS="bcc1@example.com,bcc2@example.com" # optional / can be empty
 EOF
 
 }
@@ -130,7 +122,7 @@ fi
 
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 EMAIL_TIMESTAMP=$(date "+%Y-%m-%d %H:%M:%S")
-BACKUP_NAME="mongo_backup_$TIMESTAMP"
+BACKUP_NAME="$MONGO_DBNAME-backup-$TIMESTAMP"
 HOST_BACKUP_PATH="$BACKUP_DIR/$BACKUP_NAME"
 ZIP_FILE="$BACKUP_NAME.zip"
 
