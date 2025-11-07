@@ -93,8 +93,8 @@ if [ ${#missing_vars[@]} -gt 0 ]; then
     --to_email "$TO_EMAIL" \
     --cc "$CC_EMAILS" \
     --bcc "$BCC_EMAILS" \
-    --subject "⛔ Backup Failed for $MONGO_DBNAME - $TIMESTAMP" \
-    --body "Backup $ZIP_FILE unable to upload to S3 bucket $S3_BUCKET at $TIMESTAMP."
+    --subject "⛔ Configuration Mismatched for Backup of $MONGO_DBNAME" \
+    --body "Backup Configuration Mismatched with these missing variables :\n ${missing_vars[*]}"
   exit 1
 fi
 
