@@ -141,7 +141,10 @@ if [ -n "$MONGO_DBNAME" ]; then
 fi
 
 docker exec "$MONGO_CONTAINER" bash -c \
-"mongodump $MONGO_AUTH $MONGO_DB --host localhost --port $MONGO_PORT --out /backup/$BACKUP_NAME"
+"mongodump $MONGO_AUTH $MONGO_DB --host localhost --port $MONGO_PORT --out /backup/"
+
+docker exec "$MONGO_CONTAINER" bash -c \
+"mv /backup/$MONGO_DBNAME /backup/$BACKUP_NAME"
 
 if [ $? -ne 0 ]; then
   # echo "mongodump failed"
@@ -157,6 +160,8 @@ if [ $? -ne 0 ]; then
   
   exit 1
 fi
+
+
 
 docker cp "$MONGO_CONTAINER:/backup/$BACKUP_NAME" "$HOST_BACKUP_PATH"
 
