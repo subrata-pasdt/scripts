@@ -1,7 +1,14 @@
 #!/bin/bash
 
-
-source <(curl -s https://raw.githubusercontent.com/subrata-pasdt/scripts/main/common/pasdt-devops-scripts.sh)
+#     ███████████       █████████       █████████     ██████████      ███████████
+#    ░░███░░░░░███     ███░░░░░███     ███░░░░░███   ░░███░░░░███    ░█░░░███░░░█
+#     ░███    ░███    ░███    ░███    ░███    ░░░     ░███   ░░███   ░   ░███  ░ 
+#     ░██████████     ░███████████    ░░█████████     ░███    ░███       ░███    
+#     ░███░░░░░░      ░███░░░░░███     ░░░░░░░░███    ░███    ░███       ░███    
+#     ░███            ░███    ░███     ███    ░███    ░███    ███        ░███    
+#     █████           █████   █████   ░░█████████     ██████████         █████   
+#    ░░░░░           ░░░░░   ░░░░░     ░░░░░░░░░     ░░░░░░░░░░         ░░░░░    
+#    Subrata Kumar De
 
 
 CONFIG_FILE="$1"
@@ -26,6 +33,9 @@ validate_email() {
 
 
 generate_config_file(){
+  echo "Generating config file : $CONFIG_FILE"
+  echo "Please edit $CONFIG_FILE and re run this script"
+  
   cat > $CONFIG_FILE <<EOF
 # Mongo Backup Script Configuration
 
@@ -47,8 +57,8 @@ FROM_EMAIL="from@example.com"
 TO_EMAIL="to@example.com"
 CC_EMAILS="cc1@example.com,cc2@example.com" # can be empty
 BCC_EMAILS="bcc1@example.com,bcc2@example.com" # can be empty
-EMAIL_SUBJECT="your email subject here"
 EOF
+
 }
 
 
@@ -76,6 +86,15 @@ done
 
 if [ ${#missing_vars[@]} -gt 0 ]; then
   echo "Error: Missing required config variables: ${missing_vars[*]}"
+  curl -s "$MAIL_SCRIPT_URL" | bash -s -- \
+    --mailjet_api_key "$MAILJET_API_KEY" \
+    --mailjet_api_secret "$MAILJET_API_SECRET" \
+    --from_email "$FROM_EMAIL" \
+    --to_email "$TO_EMAIL" \
+    --cc "$CC_EMAILS" \
+    --bcc "$BCC_EMAILS" \
+    --subject "⛔ Backup Failed for $MONGO_DBNAME - $TIMESTAMP" \
+    --body "Backup $ZIP_FILE unable to upload to S3 bucket $S3_BUCKET at $TIMESTAMP."
   exit 1
 fi
 
@@ -141,7 +160,7 @@ if [ $? -ne 0 ]; then
     --to_email "$TO_EMAIL" \
     --cc "$CC_EMAILS" \
     --bcc "$BCC_EMAILS" \
-    --subject "⛔ MongoDB Backup Failed - $TIMESTAMP" \
+    --subject "⛔ MongoDB Backup Failed for $MONGO_DBNAME - $TIMESTAMP" \
     --body "Failed to run mongodump on docker container at $TIMESTAMP."
   
   exit 1
@@ -154,6 +173,7 @@ zip -r "$ZIP_FILE" "$BACKUP_NAME"
 
 aws s3 cp "$ZIP_FILE" "s3://$S3_BUCKET/"
 
+
 if [ $? -ne 0 ]; then
   # echo "S3 upload failed"
 
@@ -164,11 +184,20 @@ if [ $? -ne 0 ]; then
     --to_email "$TO_EMAIL" \
     --cc "$CC_EMAILS" \
     --bcc "$BCC_EMAILS" \
-    --subject "⛔ MongoDB Backup Failed - $TIMESTAMP" \
+    --subject "⛔ MongoDB Backup Failed for $MONGO_DBNAME - $TIMESTAMP" \
     --body "Backup $ZIP_FILE unable to upload to S3 bucket $S3_BUCKET at $TIMESTAMP."
 
   exit 1
 fi
+
+# Delete the backup folder copied from container on host
+rm -rf "$HOST_BACKUP_PATH"
+
+# Delete the zipped backup file on host
+rm -f "$BACKUP_DIR/$ZIP_FILE"
+
+# Delete the backup folder inside the container
+docker exec "$MONGO_CONTAINER" rm -rf "/backup/$BACKUP_NAME"
 
 # echo "Calling mail script..."
 
@@ -179,7 +208,5 @@ curl -s "$MAIL_SCRIPT_URL" | bash -s -- \
   --to_email "$TO_EMAIL" \
   --cc "$CC_EMAILS" \
   --bcc "$BCC_EMAILS" \
-  --subject "✅ MongoDB Backup Completed - $TIMESTAMP" \
+  --subject "✅ MongoDB Backup Completed for $MONGO_DBNAME - $TIMESTAMP" \
   --body "Backup $ZIP_FILE Completed and uploaded to S3 bucket $S3_BUCKET at $TIMESTAMP."
-
-# echo "Backup and email notification done."
