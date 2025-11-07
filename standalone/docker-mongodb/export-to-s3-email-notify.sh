@@ -113,29 +113,36 @@ Uploaded to S3 bucket: $S3_BUCKET
 Regards,
 Backup Script"
 
-echo "Sending email notification..."
+# echo "Sending email notification..."
+
+EMAIL_BODY_ESCAPED=$(jq -Rn --arg txt "$EMAIL_BODY" '$txt')
+
+read -r -d '' MAILJET_PAYLOAD <<EOF
+{
+  "Messages": [
+    {
+      "From": {
+        "Email": "$FROM_EMAIL",
+        "Name": "Backup Script"
+      },
+      "To": [
+        {
+          "Email": "$TO_EMAIL",
+          "Name": "Recipient"
+        }
+      ],
+      "Subject": "$EMAIL_SUBJECT",
+      "TextPart": $EMAIL_BODY_ESCAPED
+    }
+  ]
+}
+EOF
 
 curl -s -X POST https://api.mailjet.com/v3.1/send \
-  -u "$MAILJET_API_KEY:$MAILJET_API_SECRET" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "Messages":[
-      {
-        "From": {
-          "Email": "'"$FROM_EMAIL"'",
-          "Name": "Backup Script"
-        },
-        "To": [
-          {
-            "Email": "'"$TO_EMAIL"'",
-            "Name": "Recipient"
-          }
-        ],
-        "Subject": "'"$EMAIL_SUBJECT"'",
-        "TextPart": "'"$EMAIL_BODY"'"
-      }
-    ]
-  }'
+-u "$MAILJET_API_KEY:$MAILJET_API_SECRET" \
+-H "Content-Type: application/json" \
+-d "$MAILJET_PAYLOAD"
+
 
 echo "Backup, upload, and email notification completed successfully."
 
