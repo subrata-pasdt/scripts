@@ -69,8 +69,9 @@ if [ "$CC_JSON" != "null" ]; then
 fi
 
 if [ "$BCC_JSON" != "null" ]; then
-  MAILJET_PAYLOAD+=$'\n      "Bcc": '"$BCC_JSON $'\n'
+  MAILJET_PAYLOAD+=$'\n      "Bcc": '"$BCC_JSON"$'\n'
 fi
+
 
 MAILJET_PAYLOAD+=$'
       "Subject": "'"$EMAIL_SUBJECT"'",
