@@ -1,17 +1,32 @@
 #!/bin/bash
+
+
 source <(curl -s https://raw.githubusercontent.com/subrata-pasdt/scripts/main/common/pasdt-devops-scripts.sh)
+
+
+CONFIG_FILE="$1"
+MAIL_SCRIPT_URL="https://raw.githubusercontent.com/subrata-pasdt/scripts/refs/heads/main/library/mailjet-email.sh"
 
 if [ -z "$1" ]; then
   echo "Usage: $0 <config_file>"
   exit 1
 fi
 
-CONFIG_FILE="$1"
-MAIL_SCRIPT_URL="https://raw.githubusercontent.com/subrata-pasdt/scripts/refs/heads/main/library/mailjet-email.sh"
 
-if [ ! -f "$CONFIG_FILE" ]; then
-  echo "Config file '$CONFIG_FILE' not found!"
-  cat > backup_config.cfg <<EOF
+
+
+# Validate email formats for FROM_EMAIL and TO_EMAIL (basic check)
+validate_email() {
+  local email=$1
+  if ! [[ "$email" =~ ^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$ ]]; then
+    echo "Invalid email format: $email"
+    return 1
+  fi
+}
+
+
+generate_config_file(){
+  cat > $CONFIG_FILE <<EOF
 # Mongo Backup Script Configuration
 
 MONGO_CONTAINER="your_mongo_container_name"
@@ -22,6 +37,7 @@ S3_BUCKET="your-s3-bucket-name"
 MONGO_USERNAME="your_mongo_username"
 MONGO_PASSWORD="your_mongo_password"
 MONGO_DBNAME="your_database_name"      # Leave empty for all databases
+MONGO_AUTHDB="admin"
 MONGO_PORT="27017"
 
 # Mailjet API credentials
@@ -31,18 +47,25 @@ FROM_EMAIL="from@example.com"
 TO_EMAIL="to@example.com"
 CC_EMAILS="cc1@example.com,cc2@example.com" # can be empty
 BCC_EMAILS="bcc1@example.com,bcc2@example.com" # can be empty
-
+EMAIL_SUBJECT="your email subject here"
 EOF
+}
+
+
+
+
+if [ ! -f "$CONFIG_FILE" ]; then
+  echo "Config file '$CONFIG_FILE' not found!"
+  generate_config_file
   exit 1
 fi
 
-source "$CONFIG_FILE"
 
 # Load config
 source "$CONFIG_FILE"
 
 # Required configs validation
-required_vars=(MAILJET_API_KEY MAILJET_API_SECRET FROM_EMAIL TO_EMAIL EMAIL_SUBJECT EMAIL_BODY)
+required_vars=(MAILJET_API_KEY MAILJET_API_SECRET FROM_EMAIL TO_EMAIL MONGO_CONTAINER BACKUP_DIR S3_BUCKET MONGO_USERNAME MONGO_PASSWORD MONGO_DBNAME MONGO_PORT MONGO_AUTHDB)
 
 missing_vars=()
 for var in "${required_vars[@]}"; do
@@ -56,14 +79,7 @@ if [ ${#missing_vars[@]} -gt 0 ]; then
   exit 1
 fi
 
-# Validate email formats for FROM_EMAIL and TO_EMAIL (basic check)
-validate_email() {
-  local email=$1
-  if ! [[ "$email" =~ ^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$ ]]; then
-    echo "Invalid email format: $email"
-    return 1
-  fi
-}
+
 
 validate_email "$FROM_EMAIL" || exit 1
 
@@ -91,7 +107,7 @@ if [ -n "$BCC_EMAILS" ]; then
   done
 fi
 
-echo "All required config variables are set and valid."
+# echo "All required config variables are set and valid."
 
 
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
@@ -101,11 +117,11 @@ ZIP_FILE="$BACKUP_NAME.zip"
 
 mkdir -p "$BACKUP_DIR"
 
-echo "Starting MongoDB dump from container: $MONGO_CONTAINER"
+# echo "Starting MongoDB dump from container: $MONGO_CONTAINER"
 
 MONGO_AUTH=""
 if [ -n "$MONGO_USERNAME" ] && [ -n "$MONGO_PASSWORD" ]; then
-  MONGO_AUTH="--username $MONGO_USERNAME --password $MONGO_PASSWORD --authenticationDatabase admin"
+  MONGO_AUTH="--username $MONGO_USERNAME --password $MONGO_PASSWORD --authenticationDatabase $MONGO_AUTHDB"
 fi
 
 MONGO_DB=""
@@ -117,7 +133,17 @@ docker exec "$MONGO_CONTAINER" bash -c \
 "mongodump $MONGO_AUTH $MONGO_DB --host localhost --port $MONGO_PORT --out /backup/$BACKUP_NAME"
 
 if [ $? -ne 0 ]; then
-  echo "mongodump failed"
+  # echo "mongodump failed"
+  curl -s "$MAIL_SCRIPT_URL" | bash -s -- \
+    --mailjet_api_key "$MAILJET_API_KEY" \
+    --mailjet_api_secret "$MAILJET_API_SECRET" \
+    --from_email "$FROM_EMAIL" \
+    --to_email "$TO_EMAIL" \
+    --cc "$CC_EMAILS" \
+    --bcc "$BCC_EMAILS" \
+    --subject "⛔ MongoDB Backup Failed - $TIMESTAMP" \
+    --body "Failed to run mongodump on docker container at $TIMESTAMP."
+  
   exit 1
 fi
 
@@ -129,11 +155,22 @@ zip -r "$ZIP_FILE" "$BACKUP_NAME"
 aws s3 cp "$ZIP_FILE" "s3://$S3_BUCKET/"
 
 if [ $? -ne 0 ]; then
-  echo "S3 upload failed"
+  # echo "S3 upload failed"
+
+  curl -s "$MAIL_SCRIPT_URL" | bash -s -- \
+    --mailjet_api_key "$MAILJET_API_KEY" \
+    --mailjet_api_secret "$MAILJET_API_SECRET" \
+    --from_email "$FROM_EMAIL" \
+    --to_email "$TO_EMAIL" \
+    --cc "$CC_EMAILS" \
+    --bcc "$BCC_EMAILS" \
+    --subject "⛔ MongoDB Backup Failed - $TIMESTAMP" \
+    --body "Backup $ZIP_FILE unable to upload to S3 bucket $S3_BUCKET at $TIMESTAMP."
+
   exit 1
 fi
 
-echo "Calling mail script..."
+# echo "Calling mail script..."
 
 curl -s "$MAIL_SCRIPT_URL" | bash -s -- \
   --mailjet_api_key "$MAILJET_API_KEY" \
@@ -142,7 +179,7 @@ curl -s "$MAIL_SCRIPT_URL" | bash -s -- \
   --to_email "$TO_EMAIL" \
   --cc "$CC_EMAILS" \
   --bcc "$BCC_EMAILS" \
-  --subject "MongoDB Backup Completed - $TIMESTAMP" \
-  --body "Backup $ZIP_FILE uploaded to S3 bucket $S3_BUCKET at $TIMESTAMP."
+  --subject "✅ MongoDB Backup Completed - $TIMESTAMP" \
+  --body "Backup $ZIP_FILE Completed and uploaded to S3 bucket $S3_BUCKET at $TIMESTAMP."
 
-echo "Backup and email notification done."
+# echo "Backup and email notification done."
