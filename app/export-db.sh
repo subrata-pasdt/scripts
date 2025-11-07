@@ -29,11 +29,70 @@ MAILJET_API_KEY="your_mailjet_api_key"
 MAILJET_API_SECRET="your_mailjet_api_secret"
 FROM_EMAIL="from@example.com"
 TO_EMAIL="to@example.com"
+CC_EMAILS="cc1@example.com,cc2@example.com" # can be empty
+BCC_EMAILS="bcc1@example.com,bcc2@example.com" # can be empty
+
 EOF
   exit 1
 fi
 
 source "$CONFIG_FILE"
+
+# Load config
+source "$CONFIG_FILE"
+
+# Required configs validation
+required_vars=(MAILJET_API_KEY MAILJET_API_SECRET FROM_EMAIL TO_EMAIL EMAIL_SUBJECT EMAIL_BODY)
+
+missing_vars=()
+for var in "${required_vars[@]}"; do
+  if [ -z "${!var}" ]; then
+    missing_vars+=("$var")
+  fi
+done
+
+if [ ${#missing_vars[@]} -gt 0 ]; then
+  echo "Error: Missing required config variables: ${missing_vars[*]}"
+  exit 1
+fi
+
+# Validate email formats for FROM_EMAIL and TO_EMAIL (basic check)
+validate_email() {
+  local email=$1
+  if ! [[ "$email" =~ ^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$ ]]; then
+    echo "Invalid email format: $email"
+    return 1
+  fi
+}
+
+validate_email "$FROM_EMAIL" || exit 1
+
+# TO_EMAIL can be multiple emails comma separated
+IFS=',' read -ra TO_EMAILS_ARRAY <<< "$TO_EMAIL"
+for to_email in "${TO_EMAILS_ARRAY[@]}"; do
+  to_email=$(echo "$to_email" | xargs)  # trim spaces
+  validate_email "$to_email" || exit 1
+done
+
+# If CC or BCC provided, validate their emails as well (optional)
+if [ -n "$CC_EMAILS" ]; then
+  IFS=',' read -ra CC_EMAILS_ARRAY <<< "$CC_EMAILS"
+  for cc_email in "${CC_EMAILS_ARRAY[@]}"; do
+    cc_email=$(echo "$cc_email" | xargs)
+    validate_email "$cc_email" || exit 1
+  done
+fi
+
+if [ -n "$BCC_EMAILS" ]; then
+  IFS=',' read -ra BCC_EMAILS_ARRAY <<< "$BCC_EMAILS"
+  for bcc_email in "${BCC_EMAILS_ARRAY[@]}"; do
+    bcc_email=$(echo "$bcc_email" | xargs)
+    validate_email "$bcc_email" || exit 1
+  done
+fi
+
+echo "All required config variables are set and valid."
+
 
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 BACKUP_NAME="mongo_backup_$TIMESTAMP"
@@ -81,6 +140,8 @@ curl -s "$MAIL_SCRIPT_URL" | bash -s -- \
   --mailjet_api_secret "$MAILJET_API_SECRET" \
   --from_email "$FROM_EMAIL" \
   --to_email "$TO_EMAIL" \
+  --cc "$CC_EMAILS" \
+  --bcc "$BCC_EMAILS" \
   --subject "MongoDB Backup Completed - $TIMESTAMP" \
   --body "Backup $ZIP_FILE uploaded to S3 bucket $S3_BUCKET at $TIMESTAMP."
 
