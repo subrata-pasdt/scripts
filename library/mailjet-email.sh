@@ -59,7 +59,7 @@ read -r -d '' MAILJET_PAYLOAD <<EOF
     {
       "From": {
         "Email": "$FROM_EMAIL",
-        "Name": "Backup Script"
+        "Name": "PASDT - Email Notification"
       },
       "To": $TO_JSON,
 EOF

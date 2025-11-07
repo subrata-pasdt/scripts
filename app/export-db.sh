@@ -70,7 +70,6 @@ if [ ! -f "$CONFIG_FILE" ]; then
   exit 1
 fi
 
-
 # Load config
 source "$CONFIG_FILE"
 
@@ -94,7 +93,7 @@ if [ ${#missing_vars[@]} -gt 0 ]; then
     --cc "$CC_EMAILS" \
     --bcc "$BCC_EMAILS" \
     --subject "⛔ Configuration Mismatched for Backup of $MONGO_DBNAME" \
-    --body "Backup Configuration Mismatched with these missing variables :\n ${missing_vars[*]}"
+    --body "Backup Configuration Mismatched with these missing variables : ${missing_vars[*]}"
   exit 1
 fi
 
