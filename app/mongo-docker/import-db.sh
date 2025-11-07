@@ -16,7 +16,6 @@
 
 source <(curl -s https://raw.githubusercontent.com/subrata-pasdt/scripts/main/app/mongo-docker/helper.sh)
 CONFIG_FILE="$1"
-BACKUP_ZIP_NAME="$2"   # Example: mongo_backup_20251107_123456.zip
 MAIL_SCRIPT_URL="https://raw.githubusercontent.com/subrata-pasdt/scripts/refs/heads/main/library/mailjet-email.sh"
 
 if [ -z "$CONFIG_FILE" ]; then
@@ -36,7 +35,7 @@ MONGO_CONTAINER="your_mongo_container_name"
 IMPORT_DIR="/tmp/mongo_import"
 
 S3_BUCKET="your-s3-bucket-name"
-BACKUP_FILE="backup.zip"
+BACKUP_ZIP_NAME="backup.zip"
 
 
 MONGO_USERNAME="your_mongo_username"
