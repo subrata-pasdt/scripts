@@ -19,8 +19,8 @@ CONFIG_FILE="$1"
 BACKUP_ZIP_NAME="$2"   # Example: mongo_backup_20251107_123456.zip
 MAIL_SCRIPT_URL="https://raw.githubusercontent.com/subrata-pasdt/scripts/refs/heads/main/library/mailjet-email.sh"
 
-if [ -z "$CONFIG_FILE" ] || [ -z "$BACKUP_ZIP_NAME" ]; then
-  echo "Usage: $0 <config_file> <backup_zip_name_in_s3>"
+if [ -z "$CONFIG_FILE" ]; then
+  echo "Usage: $0 <config_file>"
   exit 1
 fi
 
@@ -34,7 +34,11 @@ generate_config_file(){
 
 MONGO_CONTAINER="your_mongo_container_name"
 IMPORT_DIR="/tmp/mongo_import"
+
 S3_BUCKET="your-s3-bucket-name"
+BACKUP_FILE="backup.zip"
+
+
 MONGO_USERNAME="your_mongo_username"
 MONGO_PASSWORD="your_mongo_password"
 MONGO_AUTHDB="admin"
