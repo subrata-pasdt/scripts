@@ -155,7 +155,7 @@ fi
 BACKUP_FOLDER_NAME="${BACKUP_ZIP_NAME%.zip}"
 
 echo "Copying backup folder $BACKUP_FOLDER_NAME to container $MONGO_CONTAINER:/import/"
-docker cp "$IMPORT_DIR/$BACKUP_FOLDER_NAME" "$MONGO_CONTAINER:/import/"
+docker cp "$IMPORT_DIR/$BACKUP_FOLDER_NAME" "$MONGO_CONTAINER:/import/$BACKUP_FOLDER_NAME"
 
 if [ $? -ne 0 ]; then
   echo "Failed to copy backup folder into container"
