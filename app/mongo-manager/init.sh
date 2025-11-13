@@ -17,14 +17,14 @@ load_template() {
 export -f load_template
 
 # Load ALL modules into memory
+load_module "generate_compose.sh"
+load_module "init_replicaset.sh"
+load_module "enable_keyfile_compose.sh"
 load_module "deps.sh"
 load_module "validator.sh"
 load_module "check_files.sh"
 load_module "generate_env.sh"
-load_module "generate_compose.sh"
 load_module "create_container.sh"
-load_module "init_replicaset.sh"
-load_module "enable_keyfile_compose.sh"
 load_module "create_users.sh"
 load_module "connect_db.sh"
 load_module "show_url.sh"
