@@ -16,8 +16,6 @@ show_menu() {
 
 menu_controller() {
   clear
-  check_and_generate_files
-
   show_menu
   read choice
 
@@ -66,6 +64,9 @@ menu_controller() {
   menu_controller   # RECURSIVE CALL (NO LOOP)
 }
 
+
+
+check_and_generate_files
 # Entry point
 menu_controller
 
