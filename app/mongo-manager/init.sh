@@ -1,6 +1,6 @@
 #!/bin/bash
 
-REPO="https://raw.githubusercontent.com/subrata-pasdt/scripts/main/mongo-manager"
+REPO="https://raw.githubusercontent.com/subrata-pasdt/scripts/refs/heads/main/app/mongo-manager"
 
 load_module() {
   local file=$1
