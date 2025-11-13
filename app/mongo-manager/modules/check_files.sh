@@ -10,4 +10,12 @@ check_and_generate_files() {
     echo "docker-compose.yml missing — generating..."
     generate_compose
   fi
+
+
+  if [[ ! -f keyfile/mongo.key ]]; then
+    mkdir -p keyfile
+    openssl rand -base64 756 > keyfile/mongo.key
+    chmod 600 keyfile/mongo.key
+    echo "🔐 KeyFile created at keyfile/mongo.key"
+  fi
 }

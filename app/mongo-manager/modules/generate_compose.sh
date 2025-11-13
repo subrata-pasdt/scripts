@@ -7,9 +7,9 @@ generate_compose() {
 
   REPLICATION_HOST=$(grep REPLICATION_HOST .env | cut -d'=' -f2)
   BASE_PORT=$(grep MONGO_PORT .env | cut -d'=' -f2)
-
   [[ -z "$BASE_PORT" ]] && BASE_PORT=27017
 
+# Base compose
 cat <<EOF > docker-compose.yml
 version: "3.9"
 
@@ -17,6 +17,7 @@ services:
 EOF
 
   for ((i=1; i<=REPLICAS; i++)); do
+    
     NAME="mongo$i"
     PORT=$((BASE_PORT + i - 1))
 
@@ -27,14 +28,19 @@ cat <<EOF >> docker-compose.yml
     restart: always
     env_file: .env
     command: >
-      mongod --replSet rs0 --bind_ip_all --port $BASE_PORT
+      mongod --replSet rs0 --bind_ip_all --port $BASE_PORT --keyFile /keyfile/mongo.key
+    privileged: true
+    security_opt:
+      - seccomp=unconfined
     ports:
       - "$PORT:$BASE_PORT"
     volumes:
       - ./data/$NAME:/data/db
+      - ./keyfile:/keyfile
 
 EOF
+
   done
 
-  echo "docker-compose.yml created."
+  echo "docker-compose.yml created with $REPLICAS replica nodes."
 }

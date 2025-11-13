@@ -79,5 +79,9 @@ REPLICATION_HOST=$HOST_IP
 MONGO_PORT=$BASE_PORT
 EOF
 
+  mkdir -p keyfile
+  openssl rand -base64 756 > keyfile/mongo.key
+  chmod 600 keyfile/mongo.key
+  echo "🔐 KeyFile generated at keyfile/mongo.key"
   echo ".env created successfully."
 }
