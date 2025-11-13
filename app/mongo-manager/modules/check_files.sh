@@ -16,6 +16,7 @@ check_and_generate_files() {
     mkdir -p keyfile
     openssl rand -base64 756 > keyfile/mongo.key
     chmod 600 keyfile/mongo.key
+    sudo chown 999:999 keyfile/mongo.key
     echo "🔐 KeyFile created at keyfile/mongo.key"
   fi
 }
