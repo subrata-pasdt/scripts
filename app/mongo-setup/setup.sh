@@ -3,16 +3,18 @@
 source <(curl -s https://raw.githubusercontent.com/subrata-pasdt/scripts/main/common/pasdt-devops-scripts.sh)
 
 
-for i in scripts/*; do
-  filename=$(basename "$i")
+REPO="https://raw.githubusercontent.com/subrata-pasdt/scripts/main/app/mongo-setup"
+
+# for i in scripts/*; do
+#   filename=$(basename "$i")
   
-  if [[ "$filename" == *.sh ]]; then
-    if [ ! -x "$i" ]; then
-      show_colored_message info "Added executable permission to $i"
-      chmod +x "$i"
-    fi
-  fi
-done
+#   if [[ "$filename" == *.sh ]]; then
+#     if [ ! -x "$i" ]; then
+#       show_colored_message info "Added executable permission to $i"
+#       chmod +x "$i"
+#     fi
+#   fi
+# done
 
 show_header "PASDT DevOps" "Subrata Kumar De" "2023" "1.0"
 
@@ -25,7 +27,7 @@ select opt in "${options[@]}"; do
   case $REPLY in
     1)
       show_colored_message info "Creating Container"
-      bash scripts/create-container.sh
+      bash <(curl -s "$REPO/scripts/create-container.sh")
       break
       ;;
     2)
