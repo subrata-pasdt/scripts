@@ -6,7 +6,6 @@ set -e
 # ------------------------------------------------------------
 source <(curl -s https://raw.githubusercontent.com/subrata-pasdt/scripts/main/common/pasdt-devops-scripts.sh)
 
-
 # ------------------------------------------------------------
 # Detect local IP address (non-docker, non-loopback)
 # ------------------------------------------------------------
