@@ -4,7 +4,7 @@ set -e
 # ------------------------------------------------------------
 # Load PASDT DevOps helper functions from GitHub
 # ------------------------------------------------------------
-# source <(curl -s https://raw.githubusercontent.com/subrata-pasdt/scripts/main/common/pasdt-devos-scripts.sh)
+source <(curl -s https://raw.githubusercontent.com/subrata-pasdt/scripts/main/common/pasdt-devos-scripts.sh)
 
 
 # ------------------------------------------------------------
