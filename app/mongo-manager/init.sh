@@ -25,6 +25,7 @@ load_module "create_users.sh"
 load_module "connect_db.sh"
 load_module "show_url.sh"
 load_module "reset_all.sh"
+load_module "create_container.sh" 
 load_module "main.sh"
 
 # 1. Check dependencies
