@@ -1,6 +1,6 @@
 #!/bin/bash
 
-source <(curl -s https://raw.githubusercontent.com/subrata-pasdt/scripts/main/common/pasdt-devos-scripts.sh)
+source <(curl -s https://raw.githubusercontent.com/subrata-pasdt/scripts/main/common/pasdt-devops-scripts.sh)
 
 
 for i in scripts/*; do
