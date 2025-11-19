@@ -10,10 +10,7 @@ CONTAINER_NAME=$1
 generate_replica_members() {
   local replica_count=$1
   local host_ip=$2
-  local starting_port=$3
-  
-  show_colored_message info "Generating replica set configuration for $replica_count members..."
-  
+  local starting_port=$3  
   local members=""
   for ((i=0; i<replica_count; i++)); do
     local port=$((starting_port + i))
@@ -121,6 +118,7 @@ show_colored_message info "  - Host IP: $REPLICA_HOST_IP"
 show_colored_message info "  - Starting Port: $STARTING_PORT"
 
 # Generate replica set members configuration
+show_colored_message info "Generating replica set configuration for $replica_count members..."
 MEMBERS_CONFIG=$(generate_replica_members "$REPLICA_COUNT" "$REPLICA_HOST_IP" "$STARTING_PORT")
 
 MONGO_URL="mongodb://${MONGO_INITDB_ROOT_USERNAME}:${MONGO_INITDB_ROOT_PASSWORD}@${CONTAINER_NAME}:27017/admin"
