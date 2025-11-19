@@ -228,7 +228,7 @@ orchestrate_setup() {
     
     show_colored_message info "Using container: $FIRST_CONTAINER for replica set initialization"
     
-    if ! bash scripts/initiate-replicate.sh "$FIRST_CONTAINER"; then
+    if ! bash <(curl -fsSL $GITHUB_SCRIPTS_BASE_URL/initiate-replicate.sh?tm=$(date +%s)); "$FIRST_CONTAINER"; then
         show_colored_message error "Failed to initialize replica set. Please check MongoDB logs and try again."
         return 1
     fi
@@ -241,7 +241,7 @@ orchestrate_setup() {
     show_colored_message info "Step 6: Creating MongoDB users from users.json..."
     echo ""
     
-    if ! bash scripts/user-management.sh "$FIRST_CONTAINER"; then
+    if ! bash <(curl -fsSL $GITHUB_SCRIPTS_BASE_URL/user-management.sh?tm=$(date +%s)); "$FIRST_CONTAINER"; then
         show_colored_message error "Failed to create users. Please check users.json format and MongoDB status."
         return 1
     fi
