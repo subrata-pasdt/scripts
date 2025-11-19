@@ -372,27 +372,33 @@ select opt in "${options[@]}"; do
       ;;
     2)
       show_colored_message info "Creating Container"
-      bash scripts/create-container.sh
+      bash <(curl -fsSL $GITHUB_SCRIPTS_BASE_URL/create-container.sh?tm=$(date +%s))
+      # bash scripts/create-container.sh
       break
       ;;
     3)
       show_colored_message info "Initializing Replicaset"
-      bash scripts/initiate-replicate.sh
+      bash <(curl -fsSL $GITHUB_SCRIPTS_BASE_URL/initiate-replicate.sh?tm=$(date +%s))
+      # bash scripts/initiate-replicate.sh
       break
       ;;
     4)
       show_colored_message info "Creating Users and Roles"
-      bash scripts/user-management.sh
+      bash <(curl -fsSL $GITHUB_SCRIPTS_BASE_URL/user-management.sh?tm=$(date +%s))
+      # bash scripts/user-management.sh
       ;;
     5)
       show_colored_message info "Connecting to DB"
-      bash scripts/connect-to-db.sh
+      bash <(curl -fsSL $GITHUB_SCRIPTS_BASE_URL/connect-to-db.sh?tm=$(date +%s))
+      # bash scripts/connect-to-db.sh
       break
       ;;
     6)
       show_colored_message error "Everything will be removed !"
       if confirm "Remove Everything"; then
-        bash scripts/reset-all.sh
+        show_colored_message info "Resetting everything..."
+        bash <(curl -fsSL $GITHUB_SCRIPTS_BASE_URL/reset-all.sh?tm=$(date +%s))
+        # bash scripts/reset-all.sh
       else
         show_colored_message info "Operation canceled."
       fi
@@ -400,7 +406,8 @@ select opt in "${options[@]}"; do
       ;;
     7)
       show_colored_message info "Generating URL"
-      bash scripts/show-url.sh
+      bash <(curl -fsSL $GITHUB_SCRIPTS_BASE_URL/show-url.sh?tm=$(date +%s))
+      # bash scripts/show-url.sh
       ;;
     8)
        show_colored_message success "Thank You ! Bye."
