@@ -225,7 +225,7 @@ gather_configuration() {
     
     # Prompt for USERS_JSON_PATH
     while true; do
-        local default_users_path="${EXISTING_USERS_JSON_PATH:-./scripts/users.json}"
+        local default_users_path="${EXISTING_USERS_JSON_PATH:-./configs/users.json}"
         prompt_with_default "Path to users.json file" "$default_users_path" "CONFIG_USERS_JSON_PATH"
         
         if validate_path "$CONFIG_USERS_JSON_PATH"; then

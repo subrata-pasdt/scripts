@@ -45,8 +45,8 @@ echo -e "\nTest 12: Invalid - above range (65536)"
 validate_port "65536" && echo "✗ FAIL" || echo "✓ PASS (correctly rejected)"
 
 echo -e "\n=== Testing validate_path ==="
-echo "Test 13: Valid path (./scripts/users.json)"
-validate_path "./scripts/users.json" && echo "✓ PASS" || echo "✗ FAIL"
+echo "Test 13: Valid path (./configs/users.json)"
+validate_path "./configs/users.json" && echo "✓ PASS" || echo "✗ FAIL"
 
 echo -e "\nTest 14: Invalid - non-existent directory (/nonexistent/path/file.txt)"
 validate_path "/nonexistent/path/file.txt" && echo "✗ FAIL" || echo "✓ PASS (correctly rejected)"

@@ -53,7 +53,7 @@ The system will interactively prompt for the following configuration parameters:
 | **Replica Count** | `REPLICA_COUNT` | `3` | Number of MongoDB replica set members (1-50) |
 | **Host IP** | `REPLICA_HOST_IP` | Auto-detected | IPv4 address for replica set communication |
 | **Starting Port** | `STARTING_PORT` | `27017` | Base port number for MongoDB instances |
-| **Users JSON Path** | `USERS_JSON_PATH` | `./scripts/users.json` | Path to user definitions file |
+| **Users JSON Path** | `USERS_JSON_PATH` | `./configs/users.json` | Path to user definitions file |
 | **Keyfile Path** | `KEYFILE_PATH` | `./secrets/mongodb-keyfile` | Path to replica set keyfile |
 | **Root Username** | `MONGO_INITDB_ROOT_USERNAME` | Auto-generated | MongoDB root username |
 | **Root Password** | `MONGO_INITDB_ROOT_PASSWORD` | Auto-generated | MongoDB root password |
@@ -76,7 +76,7 @@ REPLICA_HOST_IP=192.168.1.100
 STARTING_PORT=27017
 
 # File Paths
-USERS_JSON_PATH=./scripts/users.json
+USERS_JSON_PATH=./configs/users.json
 KEYFILE_PATH=./secrets/mongodb-keyfile
 ```
 
@@ -108,7 +108,7 @@ You can also run individual steps from the menu:
 
 ### users.json Format
 
-Define users in JSON format at the configured path (default: `./scripts/users.json`):
+Define users in JSON format at the configured path (default: `./configs/users.json`):
 
 ```json
 [
@@ -329,7 +329,7 @@ bash scripts/initiate-replicate.sh mongo1
 **Solution:**
 ```bash
 # Validate JSON format
-jq . scripts/users.json
+jq . configs/users.json
 
 # Check replica set status
 docker compose exec mongo1 mongosh --eval "rs.status()"

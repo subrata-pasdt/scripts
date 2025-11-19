@@ -3,7 +3,7 @@ source <(curl -fsSL https://raw.githubusercontent.com/subrata-pasdt/scripts/main
 
 # Function to check if users.json exists and create a demo one if not
 check_and_create_json() {
-  JSON_FILE="scripts/users.json"
+  JSON_FILE="$1"
 
   # Check if the JSON file exists
   if [ ! -f "$JSON_FILE" ]; then
@@ -77,7 +77,7 @@ fi
 MONGO_URL="mongodb://${MONGO_INITDB_ROOT_USERNAME}:${MONGO_INITDB_ROOT_PASSWORD}@${CONTAINER_NAME}:27017"
 
 # Call the function to check for users.json file
-check_and_create_json
+check_and_create_json "$USERS_JSON_PATH"
 
 # Read the JSON file and process users
 for user_data in $(jq -c '.[]' "$JSON_FILE"); do
