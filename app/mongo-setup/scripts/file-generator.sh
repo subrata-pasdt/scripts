@@ -121,7 +121,7 @@ generate_keyfile() {
         return 1
     fi
     
-    # Set permissions to 400 (read-only for owner)
+    # Set permissions to 400 (read-only for owner) as required by MongoDB
     if chmod 400 "$keyfile_path" 2>/dev/null; then
         show_colored_message success "Set keyfile permissions to 400"
     else
@@ -129,13 +129,14 @@ generate_keyfile() {
         return 1
     fi
     
-    # Set ownership to 999:999 (MongoDB user in Docker)
-    # Note: This may require sudo privileges, so we'll try but not fail if it doesn't work
-    if chown 999:999 "$keyfile_path" 2>/dev/null; then
+    # Try to set ownership to 999:999 (MongoDB user in Docker)
+    show_colored_message info "Attempting to set keyfile ownership to 999:999 (MongoDB user)..."
+    if sudo chown 999:999 "$keyfile_path" 2>/dev/null; then
         show_colored_message success "Set keyfile ownership to 999:999"
     else
-        show_colored_message warning "Could not set keyfile ownership to 999:999 (may require sudo)"
-        show_colored_message info "Docker will handle ownership when mounting the keyfile"
+        show_colored_message warning "Could not set keyfile ownership to 999:999 (requires sudo)"
+        show_colored_message info "You may need to run: sudo chown 999:999 ${keyfile_path}"
+        show_colored_message info "Or the container startup may fail with keyfile permission errors"
     fi
     
     return 0
