@@ -351,7 +351,7 @@ else
 fi
 
 # Display menu options
-options=("Automated Setup" "Create Container" "Initialize Replicaset" "Create Users" "Connect to DB" "Reset Everything" "Show URL" "Exit")
+options=("Automated Setup" "Create Container" "Initialize Replicaset" "Create Users" "Connect to DB" "Reset Everything" "Show URL" "Backup DB" "Restore DB" "Exit")
 
 echo ""
 show_colored_message info "Please select an option:"
@@ -410,6 +410,16 @@ select opt in "${options[@]}"; do
       # bash scripts/show-url.sh
       ;;
     8)
+      show_colored_message info "Backuping up DB"
+      bash <(curl -fsSL $GITHUB_REPO_BASE_URL/app/mongo-docker/export-db.sh?tm=$(date +%s)) configs/export_config.cfg
+      ;;
+
+    9) 
+      show_colored_message info "Restoring DB"
+      bash <(curl -fsSL $GITHUB_SCRIPTS_BASE_URLapp/mongo-docker/import-db.sh?tm=$(date +%s)) configs/import_config.cfg
+      ;;
+
+    10)
        show_colored_message success "Thank You ! Bye."
       exit 0;
       ;;

@@ -10,6 +10,7 @@
 #    ░░░░░           ░░░░░   ░░░░░     ░░░░░░░░░     ░░░░░░░░░░         ░░░░░    
 #    Subrata Kumar De
 #    07/11/2025
+source <(curl -fsSL https://raw.githubusercontent.com/subrata-pasdt/scripts/main/common/pasdt-devops-scripts.sh)
 
 source <(curl -s https://raw.githubusercontent.com/subrata-pasdt/scripts/main/app/mongo-docker/helper.sh)
 
@@ -18,9 +19,9 @@ source <(curl -s https://raw.githubusercontent.com/subrata-pasdt/scripts/main/ap
 CONFIG_FILE="$1"
 MAIL_SCRIPT_URL="https://raw.githubusercontent.com/subrata-pasdt/scripts/refs/heads/main/library/mailjet-email.sh"
 
-if [ -z "$1" ]; then
-  echo "Usage: $0 <config_file>"
-  exit 1
+if [ -z "$CONFIG_FILE" ]; then
+  show_colored_message info "Usage: $0 <config_file>"
+  CONFIG_FILE="export_config.cfg"
 fi
 
 
@@ -42,6 +43,7 @@ MONGO_DBNAME="your_database_name"      # Leave empty for all databases
 MONGO_AUTHDB="admin"
 MONGO_PORT="27017"
 
+NOTIFICATION_EMAIL=true
 # Mailjet API credentials
 MAILJET_API_KEY="your_mailjet_api_key"
 MAILJET_API_SECRET="your_mailjet_api_secret"
@@ -66,7 +68,7 @@ fi
 source "$CONFIG_FILE"
 
 # Required configs validation
-required_vars=(MAILJET_API_KEY MAILJET_API_SECRET FROM_EMAIL TO_EMAIL MONGO_CONTAINER BACKUP_DIR S3_BUCKET MONGO_USERNAME MONGO_PASSWORD MONGO_DBNAME MONGO_PORT MONGO_AUTHDB)
+required_vars=(NOTIFICATION_EMAIL MAILJET_API_KEY MAILJET_API_SECRET FROM_EMAIL TO_EMAIL MONGO_CONTAINER BACKUP_DIR S3_BUCKET MONGO_USERNAME MONGO_PASSWORD MONGO_DBNAME MONGO_PORT MONGO_AUTHDB)
 
 missing_vars=()
 for var in "${required_vars[@]}"; do
@@ -76,45 +78,52 @@ for var in "${required_vars[@]}"; do
 done
 
 if [ ${#missing_vars[@]} -gt 0 ]; then
-  echo "Error: Missing required config variables: ${missing_vars[*]}"
-  curl -s "$MAIL_SCRIPT_URL" | bash -s -- \
-    --mailjet_api_key "$MAILJET_API_KEY" \
-    --mailjet_api_secret "$MAILJET_API_SECRET" \
-    --from_email "$FROM_EMAIL" \
-    --to_email "$TO_EMAIL" \
-    --cc "$CC_EMAILS" \
-    --bcc "$BCC_EMAILS" \
-    --subject "⛔ Configuration Mismatched for Backup of $MONGO_DBNAME" \
-    --body "Backup Configuration Mismatched with these missing variables : ${missing_vars[*]}"
+  if [ "${NOTIFICATION_EMAIL}" = "true" ]; then
+    curl -s "$MAIL_SCRIPT_URL" | bash -s -- \
+      --mailjet_api_key "$MAILJET_API_KEY" \
+      --mailjet_api_secret "$MAILJET_API_SECRET" \
+      --from_email "$FROM_EMAIL" \
+      --to_email "$TO_EMAIL" \
+      --cc "$CC_EMAILS" \
+      --bcc "$BCC_EMAILS" \
+      --subject "⛔ Configuration Mismatched for Backup of $MONGO_DBNAME" \
+      --body "Backup Configuration Mismatched with these missing variables : ${missing_vars[*]}"
+  else
+    echo "Backup Configuration Mismatched with these missing variables : ${missing_vars[*]}"
+  fi
   exit 1
 fi
 
 
+if [ "${NOTIFICATION_EMAIL}" = "true" ]; then
 
-validate_email "$FROM_EMAIL" || exit 1
+  validate_email "$FROM_EMAIL" || exit 1
 
-# TO_EMAIL can be multiple emails comma separated
-IFS=',' read -ra TO_EMAILS_ARRAY <<< "$TO_EMAIL"
-for to_email in "${TO_EMAILS_ARRAY[@]}"; do
-  to_email=$(echo "$to_email" | xargs)  # trim spaces
-  validate_email "$to_email" || exit 1
-done
-
-# If CC or BCC provided, validate their emails as well (optional)
-if [ -n "$CC_EMAILS" ]; then
-  IFS=',' read -ra CC_EMAILS_ARRAY <<< "$CC_EMAILS"
-  for cc_email in "${CC_EMAILS_ARRAY[@]}"; do
-    cc_email=$(echo "$cc_email" | xargs)
-    validate_email "$cc_email" || exit 1
+  # TO_EMAIL can be multiple emails comma separated
+  IFS=',' read -ra TO_EMAILS_ARRAY <<< "$TO_EMAIL"
+  for to_email in "${TO_EMAILS_ARRAY[@]}"; do
+    to_email=$(echo "$to_email" | xargs)  # trim spaces
+    validate_email "$to_email" || exit 1
   done
-fi
 
-if [ -n "$BCC_EMAILS" ]; then
-  IFS=',' read -ra BCC_EMAILS_ARRAY <<< "$BCC_EMAILS"
-  for bcc_email in "${BCC_EMAILS_ARRAY[@]}"; do
-    bcc_email=$(echo "$bcc_email" | xargs)
-    validate_email "$bcc_email" || exit 1
-  done
+  # If CC or BCC provided, validate their emails as well (optional)
+  if [ -n "$CC_EMAILS" ]; then
+    IFS=',' read -ra CC_EMAILS_ARRAY <<< "$CC_EMAILS"
+    for cc_email in "${CC_EMAILS_ARRAY[@]}"; do
+      cc_email=$(echo "$cc_email" | xargs)
+      validate_email "$cc_email" || exit 1
+    done
+  fi
+
+  if [ -n "$BCC_EMAILS" ]; then
+    IFS=',' read -ra BCC_EMAILS_ARRAY <<< "$BCC_EMAILS"
+    for bcc_email in "${BCC_EMAILS_ARRAY[@]}"; do
+      bcc_email=$(echo "$bcc_email" | xargs)
+      validate_email "$bcc_email" || exit 1
+    done
+  fi
+else
+  show_colored_message info "NOTIFICATION_EMAIL is set to false. Skipping email notification."
 fi
 
 # echo "All required config variables are set and valid."
@@ -146,18 +155,22 @@ docker exec "$MONGO_CONTAINER" bash -c \
 docker exec "$MONGO_CONTAINER" bash -c \
 "mv /backup/$MONGO_DBNAME /backup/$BACKUP_NAME"
 
-if [ $? -ne 0 ]; then
-  # echo "mongodump failed"
-  curl -s "$MAIL_SCRIPT_URL" | bash -s -- \
-    --mailjet_api_key "$MAILJET_API_KEY" \
-    --mailjet_api_secret "$MAILJET_API_SECRET" \
-    --from_email "$FROM_EMAIL" \
-    --to_email "$TO_EMAIL" \
-    --cc "$CC_EMAILS" \
-    --bcc "$BCC_EMAILS" \
-    --subject "⛔ MongoDB Backup Failed for $MONGO_DBNAME - $EMAIL_TIMESTAMP" \
-    --body "Failed to run mongodump on docker container at $EMAIL_TIMESTAMP."
-  
+if [ $? -ne 0  ]; then
+  if [ "${NOTIFICATION_EMAIL}" = "true" ]; then
+    # echo "mongodump failed"
+    curl -s "$MAIL_SCRIPT_URL" | bash -s -- \
+      --mailjet_api_key "$MAILJET_API_KEY" \
+      --mailjet_api_secret "$MAILJET_API_SECRET" \
+      --from_email "$FROM_EMAIL" \
+      --to_email "$TO_EMAIL" \
+      --cc "$CC_EMAILS" \
+      --bcc "$BCC_EMAILS" \
+      --subject "⛔ MongoDB Backup Failed for $MONGO_DBNAME - $EMAIL_TIMESTAMP" \
+      --body "Failed to run mongodump on docker container at $EMAIL_TIMESTAMP."
+  else
+    show_colored_message error "mongodump failed"
+  fi
+
   exit 1
 fi
 
@@ -172,17 +185,19 @@ aws s3 cp "$ZIP_FILE" "s3://$S3_BUCKET/"
 
 
 if [ $? -ne 0 ]; then
-  # echo "S3 upload failed"
-
-  curl -s "$MAIL_SCRIPT_URL" | bash -s -- \
-    --mailjet_api_key "$MAILJET_API_KEY" \
-    --mailjet_api_secret "$MAILJET_API_SECRET" \
-    --from_email "$FROM_EMAIL" \
-    --to_email "$TO_EMAIL" \
-    --cc "$CC_EMAILS" \
-    --bcc "$BCC_EMAILS" \
-    --subject "⛔ MongoDB Backup Failed for $MONGO_DBNAME - $EMAIL_TIMESTAMP" \
-    --body "Backup $ZIP_FILE unable to upload to S3 bucket $S3_BUCKET at $EMAIL_TIMESTAMP."
+  if [ "${NOTIFICATION_EMAIL}" = "true" ]; then
+    curl -s "$MAIL_SCRIPT_URL" | bash -s -- \
+      --mailjet_api_key "$MAILJET_API_KEY" \
+      --mailjet_api_secret "$MAILJET_API_SECRET" \
+      --from_email "$FROM_EMAIL" \
+      --to_email "$TO_EMAIL" \
+      --cc "$CC_EMAILS" \
+      --bcc "$BCC_EMAILS" \
+      --subject "⛔ MongoDB Backup Failed for $MONGO_DBNAME - $EMAIL_TIMESTAMP" \
+      --body "Backup $ZIP_FILE unable to upload to S3 bucket $S3_BUCKET at $EMAIL_TIMESTAMP."
+  else
+    show_colored_message error "S3 upload failed"
+  fi
 
   exit 1
 fi
@@ -198,12 +213,16 @@ docker exec "$MONGO_CONTAINER" rm -rf "/backup/$BACKUP_NAME"
 
 # echo "Calling mail script..."
 
-curl -s "$MAIL_SCRIPT_URL" | bash -s -- \
-  --mailjet_api_key "$MAILJET_API_KEY" \
-  --mailjet_api_secret "$MAILJET_API_SECRET" \
-  --from_email "$FROM_EMAIL" \
-  --to_email "$TO_EMAIL" \
-  --cc "$CC_EMAILS" \
-  --bcc "$BCC_EMAILS" \
-  --subject "✅ MongoDB Backup Completed for $MONGO_DBNAME - $EMAIL_TIMESTAMP" \
-  --body "Backup $ZIP_FILE Completed and uploaded to S3 bucket $S3_BUCKET at $EMAIL_TIMESTAMP."
+if [ "${NOTIFICATION_EMAIL}" = "true" ]; then
+  curl -s "$MAIL_SCRIPT_URL" | bash -s -- \
+    --mailjet_api_key "$MAILJET_API_KEY" \
+    --mailjet_api_secret "$MAILJET_API_SECRET" \
+    --from_email "$FROM_EMAIL" \
+    --to_email "$TO_EMAIL" \
+    --cc "$CC_EMAILS" \
+    --bcc "$BCC_EMAILS" \
+    --subject "✅ MongoDB Backup Completed for $MONGO_DBNAME - $EMAIL_TIMESTAMP" \
+    --body "Backup $ZIP_FILE Completed and uploaded to S3 bucket $S3_BUCKET at $EMAIL_TIMESTAMP."
+else
+    show_colored_message success "✅ MongoDB Backup Completed for $MONGO_DBNAME - $EMAIL_TIMESTAMP"
+fi
