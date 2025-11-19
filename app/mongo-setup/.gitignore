@@ -1,0 +1,40 @@
+# MongoDB Replica Set Setup - Git Ignore File
+
+# Environment configuration (contains sensitive credentials)
+.env
+.env.backup.*
+
+# MongoDB keyfile (sensitive authentication file)
+secrets/
+secrets/*
+
+# MongoDB data directories
+data/
+data/*
+
+# Log files
+logs/
+logs/*
+
+# Docker Compose generated file
+docker-compose.yaml
+
+# Backup files
+*.backup
+*.bak
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Temporary files
+tmp/
+temp/
+*.tmp

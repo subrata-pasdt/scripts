@@ -1,0 +1,98 @@
+[
+    {
+	"user": "developer",
+	"pass": "nKimidEnscia",
+	"roles": [
+	    {
+		"role":"readWrite",
+		"db": "pasdtems"
+	    },
+	    {
+		"role": "readWrite",
+		"db": "franmantra-uat"
+	    }
+	]
+    },
+    {
+        "user": "subrata",
+        "pass": "tZBDrRDJj2skFg8R",
+        "roles": [
+            {
+                "role": "readWrite",
+                "db": "bccrmdb"
+            },
+	    {
+		"role": "readWrite",
+		"db": "franmantra"
+	    },
+	    {
+		"role":"readWrite",
+		"db": "gtd_telecom"
+	    },
+	    {
+		"role":"readWrite",
+		"db":"pasdtems"
+	    }
+        ]
+    },
+    {
+	"user": "rohan",
+	"pass": "NJZrNWmOefUp",
+        "roles": [
+            {
+                "role":"readWrite",
+                "db":"pasdtems"
+            },
+	    {
+		"role":"readWrite",
+		"db":"franmantra"
+	    },
+            {
+		"role":"readWrite",
+		"db":"franmantra-rohan"
+           }
+        ]
+    },
+    {
+        "user": "ayan",
+        "pass": "JG7J7YxhV29r4ieC",
+        "roles": [
+            {
+                "role": "readWrite",
+                "db": "franmantra"
+            },
+	    {
+		"role": "readWrite",
+		"db":"franmantra-ayan"
+	    },
+            {
+                "role": "readWrite",
+                "db": "pasdtems"
+            }
+        ]
+    },
+    {
+        "user": "arshad",
+        "pass": "gv7umH7itdRNLSTu",
+        "roles": [
+            {
+                "role": "readWrite",
+                "db": "pasdtems"
+            },
+	    {
+		"role": "readWrite",
+		"db": "franmantra"
+	    }
+        ]
+    },
+    {
+	"user": "pasdt-dev",
+	"pass": "asdF1234",
+	"roles": [
+	    {
+		"role": "readWrite",
+		"db": "franmantra-demo"
+	    }
+	]
+    }
+]
