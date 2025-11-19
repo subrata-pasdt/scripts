@@ -108,11 +108,10 @@ setup_workspace() {
     
     # Define directories to create
     local directories=(
-        "app/mongo-setup"
-        "app/mongo-setup/scripts"
-        "app/mongo-setup/secrets"
-        "app/mongo-setup/data"
-        "app/mongo-setup/logs"
+        "scripts"
+        "secrets"
+        "data"
+        "logs"
     )
     
     # Create each directory
