@@ -205,7 +205,7 @@ orchestrate_setup() {
     show_colored_message info "Step 4: Creating MongoDB containers..."
     echo ""
     
-    if ! bash scripts/create-container.sh; then
+    if ! bash <(curl -fsSL $GITHUB_SCRIPTS_BASE_URL/create-container.sh?tm=$(date +%s)); then
         show_colored_message error "Failed to create MongoDB containers. Please check Docker status and try again."
         return 1
     fi
