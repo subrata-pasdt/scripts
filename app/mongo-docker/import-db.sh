@@ -153,11 +153,13 @@ for host in "${MONGO_ARR[@]}"; do
     host=$(echo "$host" | xargs) # trim
 
     # Check if this container is PRIMARY
-    is_primary=$(docker exec "$host" \
-        bash -c 'mongosh --quiet --eval "rs.isMaster().ismaster"' 2>/dev/null)
-    if [[ "$is_primary" == "true" ]]; then
+    is_primary=$(docker exec "$host" bash -c 'mongosh --quiet --eval "rs.isMaster().ismaster"' 2>/dev/null)
+    if [ "$is_primary" = "true" ]; then
+        show_colored_message success "Found PRIMARY container: $host"
         MONGODB_CONTAINER="$host"
         break
+    else
+        show_colored_message info "Container $host is not PRIMARY"
     fi
 done
 
