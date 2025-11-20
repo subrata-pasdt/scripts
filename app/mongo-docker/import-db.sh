@@ -259,7 +259,7 @@ fi
 # Cleanup: remove import folder from container and local files
 docker exec "$MONGO_CONTAINER" rm -rf "/import/$BACKUP_FOLDER_NAME"
 
-if [ ${CLEANUP} = "true" ]; then
+if [ "${CLEANUP}" = "true" ]; then
   rm -rf "$IMPORT_DIR/$BACKUP_FOLDER_NAME"
   rm -f "$IMPORT_DIR/$BACKUP_ZIP_NAME"
 fi

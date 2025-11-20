@@ -183,12 +183,12 @@ fi
 
 docker cp "$MONGO_CONTAINER:/backup/$BACKUP_NAME" "$HOST_BACKUP_PATH"
 
+
 cd "$BACKUP_DIR"
 zip -r "$ZIP_FILE" "$BACKUP_NAME"
 
-if [ $UPLOAD_TO_S3 = "true"]; then
+if [ "${UPLOAD_TO_S3}" = "true"]; then
   aws s3 cp "$ZIP_FILE" "s3://$S3_BUCKET/"
-
 
   if [ $? -ne 0 ]; then
     if [ "${NOTIFICATION_EMAIL}" = "true" ]; then
@@ -211,11 +211,13 @@ else
   show_colored_message info "UPLOAD_TO_S3 is set to false. Skipping S3 upload."
 fi
 
-# Delete the backup folder copied from container on host
-rm -rf "$HOST_BACKUP_PATH"
+if [ "${CLEANUP}" = "true" ]; then
+  # Delete the backup folder copied from container on host
+  rm -rf "$HOST_BACKUP_PATH"
+  # Delete the zipped backup file on host
+  rm -f "$BACKUP_DIR/$ZIP_FILE"
+fi
 
-# Delete the zipped backup file on host
-rm -f "$BACKUP_DIR/$ZIP_FILE"
 
 # Delete the backup folder inside the container
 docker exec "$MONGO_CONTAINER" rm -rf "/backup/$BACKUP_NAME"
