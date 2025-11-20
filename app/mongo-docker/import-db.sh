@@ -151,7 +151,7 @@ done
 read -ra MONGO_ARR <<< "${MONGODB_CONTAINERS}"
 
 
-echo ${MONGO_ARR[@]}
+show_colored_message info ${MONGO_ARR[@]}
 
 for host in "${MONGO_ARR[@]}"; do
     host=$(echo "$host" | xargs)
