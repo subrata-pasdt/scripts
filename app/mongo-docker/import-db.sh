@@ -41,7 +41,7 @@ generate_config_file(){
   cat > $CONFIG_FILE <<EOF
 # Mongo Import Script Configuration
 
-MONGO_CONTAINERS=(mongo1 mongo2 mongo3)
+MONGO_CONTAINERS="mongo1 mongo2 mongo3"
 IMPORT_DIR="/tmp/mongo_import"
 
 DOWNLOAD_FROM_S3=false # make it true to download from s3
@@ -144,12 +144,9 @@ fi
 
 # getting primary mongo container
 
-read -ra MONGO_ARR <<< "${MONGODB_CONTAINERS}"
+show_colored_message info ${MONGODB_CONTAINERS}
 
-
-show_colored_message info ${MONGO_ARR[@]}
-
-for host in "${MONGO_ARR[@]}"; do
+for host in $MONGODB_CONTAINERS; do
     host=$(echo "$host" | xargs)
     echo "$host"
     # Run command using sh (Mongo image doesn't have bash)
