@@ -33,7 +33,7 @@ generate_config_file(){
   cat > $CONFIG_FILE <<EOF
 # Mongo Import Script Configuration
 
-MONGO_CONTAINER="your_mongo_container_name"
+MONGO_CONTAINERS="mongo1,mongo2,mongo3"
 IMPORT_DIR="/tmp/mongo_import"
 
 DOWNLOAD_FROM_S3=false # make it true to download from s3
@@ -72,7 +72,7 @@ source "$CONFIG_FILE"
 
 
 # Validate required config vars
-required_vars=(CLEANUP DOWNLOAD_FROM_S3 NOTIFICATION_EMAIL MAILJET_API_KEY MAILJET_API_SECRET FROM_EMAIL TO_EMAIL MONGO_CONTAINER IMPORT_DIR S3_BUCKET MONGO_USERNAME MONGO_PASSWORD MONGO_DBNAME MONGO_PORT MONGO_AUTHDB)
+required_vars=(CLEANUP DOWNLOAD_FROM_S3 NOTIFICATION_EMAIL MAILJET_API_KEY MAILJET_API_SECRET FROM_EMAIL TO_EMAIL MONGO_CONTAINERS IMPORT_DIR S3_BUCKET MONGO_USERNAME MONGO_PASSWORD MONGO_DBNAME MONGO_PORT MONGO_AUTHDB)
 
 missing_vars=()
 for var in "${required_vars[@]}"; do
@@ -127,6 +127,39 @@ if [ "${NOTIFICATION_EMAIL}" = "true" ]; then
     done
   fi
 fi
+
+
+
+
+
+
+
+
+MONGODB_CONTAINER=""
+
+IFS=',' read -ra MONGO_ARR <<< "$MONGODB_CONTAINERS"
+
+for host in "${MONGO_ARR[@]}"; do
+    host=$(echo "$host" | xargs) # trim
+
+    # Check if this container is PRIMARY
+    is_primary=$(docker exec "$host" \
+        bash -c 'mongosh --quiet --eval "rs.isMaster().ismaster"' 2>/dev/null)
+
+    if [[ "$is_primary" == "true" ]]; then
+        MONGODB_CONTAINER="$host"
+        break
+    fi
+done
+
+if [[ -z "$MONGODB_CONTAINER" ]]; then
+    echo "No PRIMARY container found."
+    exit 1
+fi
+
+
+
+
 
 TIMESTAMP=$(date "+%Y-%m-%d %H:%M:%S")
 
@@ -236,9 +269,9 @@ if [ -n "$MONGO_DBNAME" ]; then
 fi
 
 # Run mongorestore inside container
-show_colored_message info "Running mongorestore inside container..."
-
 show_colored_message info "mongorestore command: mongorestore $MONGO_AUTH --host localhost --port $MONGO_PORT $MONGO_DB_ARG /import/$BACKUP_FOLDER_NAME"
+
+show_colored_message info "Running mongorestore inside container..."
 
 result=$(docker exec "$MONGO_CONTAINER" bash -c "mongorestore $MONGO_AUTH --host localhost --port $MONGO_PORT $MONGO_DB_ARG /import/$BACKUP_FOLDER_NAME")
 
