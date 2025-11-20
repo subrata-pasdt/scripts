@@ -41,7 +41,7 @@ generate_config_file(){
   cat > $CONFIG_FILE <<EOF
 # Mongo Import Script Configuration
 
-MONGO_CONTAINERS="mongo1,mongo2,mongo3"
+MONGO_CONTAINERS=(mongo1 mongo2 mongo3)
 IMPORT_DIR="/tmp/mongo_import"
 
 DOWNLOAD_FROM_S3=false # make it true to download from s3
@@ -141,7 +141,7 @@ fi
 
 show_colored_message info "Config variables:"
 
-for var in "${!required_vars[@]}"; do
+for var in "${required_vars[@]}"; do
   show_colored_message default "$var = ${!var}"
 done
 
