@@ -147,9 +147,11 @@ fi
 
 IFS=',' read -ra MONGO_ARR <<< "$MONGODB_CONTAINERS"
 
+echo ${MONGO_ARR[@]}
+
 for host in "${MONGO_ARR[@]}"; do
     host=$(echo "$host" | xargs)
-
+    echo "$host"
     # Run command using sh (Mongo image doesn't have bash)
     is_primary=$(docker exec "$host" sh -c 'mongosh --quiet --eval "rs.isMaster().ismaster"' 2>/dev/null)
 
