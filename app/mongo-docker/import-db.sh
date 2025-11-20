@@ -238,8 +238,8 @@ fi
 # Run mongorestore inside container
 show_colored_message info "Running mongorestore inside container..."
 
-result=$(docker exec "$MONGO_CONTAINER" bash -c \
-"mongorestore $MONGO_AUTH --host localhost --port $MONGO_PORT $MONGO_DB_ARG /import/$BACKUP_FOLDER_NAME" 2>&1)
+show_colored_message info "mongorestore command: mongorestore $MONGO_AUTH --host localhost --port $MONGO_PORT $MONGO_DB_ARG /import/$BACKUP_FOLDER_NAME"
+result=$(docker exec "$MONGO_CONTAINER" bash -c "mongorestore $MONGO_AUTH --host localhost --port $MONGO_PORT $MONGO_DB_ARG /import/$BACKUP_FOLDER_NAME")
 
 if [ $? -ne 0 ]; then
   if [ "${NOTIFICATION_EMAIL}" = "true" ]; then
