@@ -145,15 +145,17 @@ fi
 
 # getting primary mongo container
 
-MONGODB_CONTAINER=""
-
 IFS=',' read -ra MONGO_ARR <<< "$MONGODB_CONTAINERS"
 
 for host in "${MONGO_ARR[@]}"; do
-    host=$(echo "$host" | xargs) # trim
+    host=$(echo "$host" | xargs)
 
-    # Check if this container is PRIMARY
-    is_primary=$(docker exec "$host" bash -c 'mongosh --quiet --eval "rs.isMaster().ismaster"' 2>/dev/null)
+    # Run command using sh (Mongo image doesn't have bash)
+    is_primary=$(docker exec "$host" sh -c 'mongosh --quiet --eval "rs.isMaster().ismaster"' 2>/dev/null)
+
+    # Normalize output (remove spaces + newlines)
+    is_primary=$(echo "$is_primary" | tr -d '[:space:]')
+
     if [ "$is_primary" = "true" ]; then
         show_colored_message success "Found PRIMARY container: $host"
         MONGODB_CONTAINER="$host"
@@ -167,6 +169,29 @@ if [[ -z "$MONGODB_CONTAINER" ]]; then
     show_colored_message error "No PRIMARY container found."
     exit 1
 fi
+
+
+
+
+
+# MONGODB_CONTAINER=""
+# IFS=',' read -ra MONGO_ARR <<< "$MONGODB_CONTAINERS"
+# for host in "${MONGO_ARR[@]}"; do
+#     host=$(echo "$host" | xargs) # trim
+#     # Check if this container is PRIMARY
+#     is_primary=$(docker exec "$host" bash -c 'mongosh --quiet --eval "rs.isMaster().ismaster"' 2>/dev/null)
+#     if [ "$is_primary" = "true" ]; then
+#         show_colored_message success "Found PRIMARY container: $host"
+#         MONGODB_CONTAINER="$host"
+#         break
+#     else
+#         show_colored_message info "Container $host is not PRIMARY"
+#     fi
+# done
+# if [[ -z "$MONGODB_CONTAINER" ]]; then
+#     show_colored_message error "No PRIMARY container found."
+#     exit 1
+# fi
 
 
 
