@@ -139,8 +139,11 @@ if [ "${NOTIFICATION_EMAIL}" = "true" ]; then
   fi
 fi
 
+show_colored_message info "Config variables:"
 
-
+for var in "${!required_vars[@]}"; do
+  show_colored_message default "$var = ${!var}"
+done
 
 
 # getting primary mongo container
