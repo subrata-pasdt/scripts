@@ -14,8 +14,6 @@
 
 
 source <(curl -fsSL https://raw.githubusercontent.com/subrata-pasdt/scripts/main/common/pasdt-devops-scripts.sh)
-
-
 source <(curl -s https://raw.githubusercontent.com/subrata-pasdt/scripts/main/app/mongo-docker/helper.sh)
 CONFIG_FILE="$1"
 MAIL_SCRIPT_URL="https://raw.githubusercontent.com/subrata-pasdt/scripts/refs/heads/main/library/mailjet-email.sh"
@@ -25,7 +23,17 @@ if [ -z "$CONFIG_FILE" ]; then
   CONFIG_FILE="import_config.cfg"
 fi
 
+
+
+
+
+
+
+
 # Generate demo config if missing
+# Generates a demo config file if not provided
+# Config file is generated in the current directory and contains default values
+# User needs to edit the config file and re-run this script for actual usage
 generate_config_file(){
   show_colored_message info "Generating config file : $CONFIG_FILE"
   show_colored_message info "Please edit $CONFIG_FILE and re-run this script"
@@ -69,6 +77,9 @@ if [ ! -f "$CONFIG_FILE" ]; then
 fi
 
 source "$CONFIG_FILE"
+
+
+
 
 
 # Validate required config vars
@@ -132,8 +143,7 @@ fi
 
 
 
-
-
+# getting primary mongo container
 
 MONGODB_CONTAINER=""
 
@@ -145,7 +155,6 @@ for host in "${MONGO_ARR[@]}"; do
     # Check if this container is PRIMARY
     is_primary=$(docker exec "$host" \
         bash -c 'mongosh --quiet --eval "rs.isMaster().ismaster"' 2>/dev/null)
-
     if [[ "$is_primary" == "true" ]]; then
         MONGODB_CONTAINER="$host"
         break
@@ -153,7 +162,7 @@ for host in "${MONGO_ARR[@]}"; do
 done
 
 if [[ -z "$MONGODB_CONTAINER" ]]; then
-    echo "No PRIMARY container found."
+    show_colored_message error "No PRIMARY container found."
     exit 1
 fi
 
@@ -209,9 +218,13 @@ else
   fi
 fi
 
+
+
+
 # Unzip the backup
 show_colored_message info "Unzipping $BACKUP_ZIP_NAME"
 unzip -o "$IMPORT_DIR/$BACKUP_ZIP_NAME" -d "$IMPORT_DIR"
+
 
 if [ $? -ne 0 ]; then
   if [ "${NOTIFICATION_EMAIL}" = "true" ]; then
@@ -230,8 +243,11 @@ if [ $? -ne 0 ]; then
   exit 1
 fi
 
+
+
 # Copy unzipped backup folder to container
 BACKUP_FOLDER_NAME="${BACKUP_ZIP_NAME%.zip}"
+
 
 show_colored_message info "Copying backup folder $BACKUP_FOLDER_NAME to container $MONGO_CONTAINER:/import/"
 if ! docker exec "$MONGO_CONTAINER" [ -d "/import" ]; then
@@ -257,6 +273,9 @@ if [ $? -ne 0 ]; then
   exit 1
 fi
 
+
+
+
 # Build mongorestore command with auth
 MONGO_AUTH=""
 if [ -n "$MONGO_USERNAME" ] && [ -n "$MONGO_PASSWORD" ]; then
@@ -268,9 +287,11 @@ if [ -n "$MONGO_DBNAME" ]; then
   MONGO_DB_ARG="--db $MONGO_DBNAME"
 fi
 
+
+
+
 # Run mongorestore inside container
 show_colored_message info "mongorestore command: mongorestore $MONGO_AUTH --host localhost --port $MONGO_PORT $MONGO_DB_ARG /import/$BACKUP_FOLDER_NAME"
-
 show_colored_message info "Running mongorestore inside container..."
 
 result=$(docker exec "$MONGO_CONTAINER" bash -c "mongorestore $MONGO_AUTH --host localhost --port $MONGO_PORT $MONGO_DB_ARG /import/$BACKUP_FOLDER_NAME")
