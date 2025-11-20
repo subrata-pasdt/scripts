@@ -41,7 +41,7 @@ generate_config_file(){
   cat > $CONFIG_FILE <<EOF
 # Mongo Import Script Configuration
 
-MONGO_CONTAINERS="mongo1 mongo2 mongo3"
+MONGO_CONTAINERS=(mongo1 mongo2 mongo3)
 IMPORT_DIR="/tmp/mongo_import"
 
 DOWNLOAD_FROM_S3=false # make it true to download from s3
@@ -89,8 +89,6 @@ missing_vars=()
 for var in "${required_vars[@]}"; do
   if [ -z "${!var}" ]; then
     missing_vars+=("$var")
-  else
-    show_colored_message default "$var"
   fi
 done
 
@@ -142,11 +140,15 @@ if [ "${NOTIFICATION_EMAIL}" = "true" ]; then
 fi
 
 
+
 # getting primary mongo container
 
-show_colored_message info ${MONGODB_CONTAINERS}
+read -ra MONGO_ARR <<< "${MONGO_CONTAINERS}"
 
-for host in $MONGODB_CONTAINERS; do
+
+show_colored_message info ${MONGO_ARR[@]}
+
+for host in "${MONGO_ARR[@]}"; do
     host=$(echo "$host" | xargs)
     echo "$host"
     # Run command using sh (Mongo image doesn't have bash)
@@ -157,14 +159,14 @@ for host in $MONGODB_CONTAINERS; do
 
     if [ "$is_primary" = "true" ]; then
         show_colored_message success "Found PRIMARY container: $host"
-        MONGODB_CONTAINER="$host"
+        MONGO_CONTAINER="$host"
         break
     else
         show_colored_message info "Container $host is not PRIMARY"
     fi
 done
 
-if [[ -z "$MONGODB_CONTAINER" ]]; then
+if [[ -z "$MONGO_CONTAINER" ]]; then
     show_colored_message error "No PRIMARY container found."
     exit 1
 fi
