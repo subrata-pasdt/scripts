@@ -36,8 +36,11 @@ generate_config_file(){
 MONGO_CONTAINER="your_mongo_container_name"
 IMPORT_DIR="/tmp/mongo_import"
 
+DOWNLOAD_FROM_S3=false # make it true to download from s3
 S3_BUCKET="your-s3-bucket-name"
 BACKUP_ZIP_NAME="backup.zip"
+
+
 
 
 MONGO_USERNAME="your_mongo_username"
@@ -53,6 +56,9 @@ FROM_EMAIL="from@example.com"
 TO_EMAIL="to@example.com"
 CC_EMAILS=""
 BCC_EMAILS=""
+
+CLEANUP=false # make it true to clean up after import
+
 EOF
 }
 
@@ -66,7 +72,7 @@ source "$CONFIG_FILE"
 
 
 # Validate required config vars
-required_vars=(NOTIFICATION_EMAIL MAILJET_API_KEY MAILJET_API_SECRET FROM_EMAIL TO_EMAIL MONGO_CONTAINER IMPORT_DIR S3_BUCKET MONGO_USERNAME MONGO_PASSWORD MONGO_DBNAME MONGO_PORT MONGO_AUTHDB)
+required_vars=(CLEANUP DOWNLOAD_FROM_S3 NOTIFICATION_EMAIL MAILJET_API_KEY MAILJET_API_SECRET FROM_EMAIL TO_EMAIL MONGO_CONTAINER IMPORT_DIR S3_BUCKET MONGO_USERNAME MONGO_PASSWORD MONGO_DBNAME MONGO_PORT MONGO_AUTHDB)
 
 missing_vars=()
 for var in "${required_vars[@]}"; do
@@ -124,27 +130,50 @@ fi
 
 TIMESTAMP=$(date "+%Y-%m-%d %H:%M:%S")
 
-mkdir -p "$IMPORT_DIR"
+if [ ! -d "$IMPORT_DIR" ]; then
+  mkdir -p "$IMPORT_DIR"
+fi
 
-# Download backup zip from S3
-show_colored_message info "Downloading $BACKUP_ZIP_NAME from s3://$S3_BUCKET"
-aws s3 cp "s3://$S3_BUCKET/$BACKUP_ZIP_NAME" "$IMPORT_DIR/"
+if [ "${DOWNLOAD_FROM_S3}" = "true" ]; then
+  # Download backup zip from S3
+  show_colored_message info "Downloading $BACKUP_ZIP_NAME from s3://$S3_BUCKET"
+  aws s3 cp "s3://$S3_BUCKET/$BACKUP_ZIP_NAME" "$IMPORT_DIR/"
 
-if [ $? -ne 0 ]; then
-  if [ "${NOTIFICATION_EMAIL}" = "true" ]; then
-    curl -s "$MAIL_SCRIPT_URL" | bash -s -- \
-      --mailjet_api_key "$MAILJET_API_KEY" \
-      --mailjet_api_secret "$MAILJET_API_SECRET" \
-      --from_email "$FROM_EMAIL" \
-      --to_email "$TO_EMAIL" \
-      --cc "$CC_EMAILS" \
-      --bcc "$BCC_EMAILS" \
-      --subject "⛔ MongoDB Import Failed - Download Error" \
-      --body "Failed to download backup file $BACKUP_ZIP_NAME from S3 bucket $S3_BUCKET at $TIMESTAMP."
-  else
-    show_colored_message error "Error downloading backup file $BACKUP_ZIP_NAME from S3 bucket $S3_BUCKET at $TIMESTAMP."
+  if [ $? -ne 0 ]; then
+    if [ "${NOTIFICATION_EMAIL}" = "true" ]; then
+      curl -s "$MAIL_SCRIPT_URL" | bash -s -- \
+        --mailjet_api_key "$MAILJET_API_KEY" \
+        --mailjet_api_secret "$MAILJET_API_SECRET" \
+        --from_email "$FROM_EMAIL" \
+        --to_email "$TO_EMAIL" \
+        --cc "$CC_EMAILS" \
+        --bcc "$BCC_EMAILS" \
+        --subject "⛔ MongoDB Import Failed - Download Error" \
+        --body "Failed to download backup file $BACKUP_ZIP_NAME from S3 bucket $S3_BUCKET at $TIMESTAMP."
+    else
+      show_colored_message error "Error downloading backup file $BACKUP_ZIP_NAME from S3 bucket $S3_BUCKET at $TIMESTAMP."
+    fi
+    exit 1
   fi
-  exit 1
+else
+  # Download backup zip from URL
+  show_colored_message info "Downloading from S3 is disabled. Going with local file $BACKUP_ZIP_NAME"
+  if [ ! -f "$IMPORT_DIR/$BACKUP_ZIP_NAME" ]; then
+    if [ "${NOTIFICATION_EMAIL}" = "true" ]; then
+      curl -s "$MAIL_SCRIPT_URL" | bash -s -- \
+        --mailjet_api_key "$MAILJET_API_KEY" \
+        --mailjet_api_secret "$MAILJET_API_SECRET" \
+        --from_email "$FROM_EMAIL" \
+        --to_email "$TO_EMAIL" \
+        --cc "$CC_EMAILS" \
+        --bcc "$BCC_EMAILS" \
+        --subject "⛔ MongoDB Import Failed - File Not Found" \
+        --body "Backup file $BACKUP_ZIP_NAME not found in directory $IMPORT_DIR at $TIMESTAMP."
+    else
+      show_colored_message error "Backup file $BACKUP_ZIP_NAME not found in directory $IMPORT_DIR at $TIMESTAMP."
+    fi
+    exit 1
+  fi
 fi
 
 # Unzip the backup
@@ -225,10 +254,15 @@ if [ $? -ne 0 ]; then
   exit 1
 fi
 
+
+
 # Cleanup: remove import folder from container and local files
 docker exec "$MONGO_CONTAINER" rm -rf "/import/$BACKUP_FOLDER_NAME"
-rm -rf "$IMPORT_DIR/$BACKUP_FOLDER_NAME"
-rm -f "$IMPORT_DIR/$BACKUP_ZIP_NAME"
+
+if [ ${CLEANUP} = "true" ]; then
+  rm -rf "$IMPORT_DIR/$BACKUP_FOLDER_NAME"
+  rm -f "$IMPORT_DIR/$BACKUP_ZIP_NAME"
+fi
 
 
 if [ "${NOTIFICATION_EMAIL}" = "true" ]; then

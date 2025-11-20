@@ -34,16 +34,18 @@ generate_config_file(){
 
 MONGO_CONTAINER="your_mongo_container_name"
 BACKUP_DIR="/tmp/mongodump_backups"
+
+UPLOAD_TO_S3=false # make it true to upload to s3
 S3_BUCKET="your-s3-bucket-name"
 
 # MongoDB connection details
 MONGO_USERNAME="your_mongo_username"
 MONGO_PASSWORD="your_mongo_password"
-MONGO_DBNAME="your_database_name"      # Leave empty for all databases
+MONGO_DBNAME="your_database_name"
 MONGO_AUTHDB="admin"
 MONGO_PORT="27017"
 
-NOTIFICATION_EMAIL=true
+NOTIFICATION_EMAIL=true # make it true to send email
 # Mailjet API credentials
 MAILJET_API_KEY="your_mailjet_api_key"
 MAILJET_API_SECRET="your_mailjet_api_secret"
@@ -51,6 +53,9 @@ FROM_EMAIL="from@example.com"
 TO_EMAIL="to@example.com"
 CC_EMAILS="cc1@example.com,cc2@example.com" # optional / can be empty
 BCC_EMAILS="bcc1@example.com,bcc2@example.com" # optional / can be empty
+
+
+CLEANUP=false # make it true to clean up after backup
 EOF
 
 }
@@ -68,7 +73,7 @@ fi
 source "$CONFIG_FILE"
 
 # Required configs validation
-required_vars=(NOTIFICATION_EMAIL MAILJET_API_KEY MAILJET_API_SECRET FROM_EMAIL TO_EMAIL MONGO_CONTAINER BACKUP_DIR S3_BUCKET MONGO_USERNAME MONGO_PASSWORD MONGO_DBNAME MONGO_PORT MONGO_AUTHDB)
+required_vars=(UPLOAD_TO_S3 NOTIFICATION_EMAIL MAILJET_API_KEY MAILJET_API_SECRET FROM_EMAIL TO_EMAIL MONGO_CONTAINER BACKUP_DIR S3_BUCKET MONGO_USERNAME MONGO_PASSWORD MONGO_DBNAME MONGO_PORT MONGO_AUTHDB)
 
 missing_vars=()
 for var in "${required_vars[@]}"; do
@@ -181,25 +186,29 @@ docker cp "$MONGO_CONTAINER:/backup/$BACKUP_NAME" "$HOST_BACKUP_PATH"
 cd "$BACKUP_DIR"
 zip -r "$ZIP_FILE" "$BACKUP_NAME"
 
-aws s3 cp "$ZIP_FILE" "s3://$S3_BUCKET/"
+if [ $UPLOAD_TO_S3 = "true"]; then
+  aws s3 cp "$ZIP_FILE" "s3://$S3_BUCKET/"
 
 
-if [ $? -ne 0 ]; then
-  if [ "${NOTIFICATION_EMAIL}" = "true" ]; then
-    curl -s "$MAIL_SCRIPT_URL" | bash -s -- \
-      --mailjet_api_key "$MAILJET_API_KEY" \
-      --mailjet_api_secret "$MAILJET_API_SECRET" \
-      --from_email "$FROM_EMAIL" \
-      --to_email "$TO_EMAIL" \
-      --cc "$CC_EMAILS" \
-      --bcc "$BCC_EMAILS" \
-      --subject "⛔ MongoDB Backup Failed for $MONGO_DBNAME - $EMAIL_TIMESTAMP" \
-      --body "Backup $ZIP_FILE unable to upload to S3 bucket $S3_BUCKET at $EMAIL_TIMESTAMP."
-  else
-    show_colored_message error "S3 upload failed"
+  if [ $? -ne 0 ]; then
+    if [ "${NOTIFICATION_EMAIL}" = "true" ]; then
+      curl -s "$MAIL_SCRIPT_URL" | bash -s -- \
+        --mailjet_api_key "$MAILJET_API_KEY" \
+        --mailjet_api_secret "$MAILJET_API_SECRET" \
+        --from_email "$FROM_EMAIL" \
+        --to_email "$TO_EMAIL" \
+        --cc "$CC_EMAILS" \
+        --bcc "$BCC_EMAILS" \
+        --subject "⛔ MongoDB Backup Failed for $MONGO_DBNAME - $EMAIL_TIMESTAMP" \
+        --body "Backup $ZIP_FILE unable to upload to S3 bucket $S3_BUCKET at $EMAIL_TIMESTAMP."
+    else
+      show_colored_message error "S3 upload failed"
+    fi
+
+    exit 1
   fi
-
-  exit 1
+else
+  show_colored_message info "UPLOAD_TO_S3 is set to false. Skipping S3 upload."
 fi
 
 # Delete the backup folder copied from container on host
