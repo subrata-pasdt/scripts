@@ -89,6 +89,8 @@ missing_vars=()
 for var in "${required_vars[@]}"; do
   if [ -z "${!var}" ]; then
     missing_vars+=("$var")
+  else
+    show_colored_message default "$var"
   fi
 done
 
@@ -138,12 +140,6 @@ if [ "${NOTIFICATION_EMAIL}" = "true" ]; then
     done
   fi
 fi
-
-show_colored_message info "Config variables:"
-
-for var in "${required_vars[@]}"; do
-  show_colored_message default "$var = ${!var}"
-done
 
 
 # getting primary mongo container
