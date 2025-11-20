@@ -187,7 +187,7 @@ docker cp "$MONGO_CONTAINER:/backup/$BACKUP_NAME" "$HOST_BACKUP_PATH"
 cd "$BACKUP_DIR"
 zip -r "$ZIP_FILE" "$BACKUP_NAME"
 
-if [ "${UPLOAD_TO_S3}" = "true"]; then
+if [ "${UPLOAD_TO_S3}" = "true" ]; then
   aws s3 cp "$ZIP_FILE" "s3://$S3_BUCKET/"
 
   if [ $? -ne 0 ]; then
