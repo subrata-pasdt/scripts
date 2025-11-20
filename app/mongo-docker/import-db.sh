@@ -145,7 +145,8 @@ fi
 
 # getting primary mongo container
 
-IFS=',' read -ra MONGO_ARR <<< "$MONGODB_CONTAINERS"
+read -ra MONGO_ARR <<< "${MONGODB_CONTAINERS}"
+
 
 echo ${MONGO_ARR[@]}
 
