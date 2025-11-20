@@ -45,7 +45,7 @@ MONGO_DBNAME="your_database_name"
 MONGO_AUTHDB="admin"
 MONGO_PORT="27017"
 
-NOTIFICATION_EMAIL=true # make it true to send email
+NOTIFICATION_EMAIL=false # make it true to send email
 # Mailjet API credentials
 MAILJET_API_KEY="your_mailjet_api_key"
 MAILJET_API_SECRET="your_mailjet_api_secret"

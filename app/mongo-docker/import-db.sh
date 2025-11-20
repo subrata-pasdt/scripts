@@ -49,7 +49,7 @@ MONGO_AUTHDB="admin"
 MONGO_PORT="27017"
 MONGO_DBNAME="your_database_name"
 
-NOTIFICATION_EMAIL=true
+NOTIFICATION_EMAIL=false # make it true to send email
 MAILJET_API_KEY="your_mailjet_api_key"
 MAILJET_API_SECRET="your_mailjet_api_secret"
 FROM_EMAIL="from@example.com"
@@ -177,7 +177,7 @@ else
 fi
 
 # Unzip the backup
-echo "Unzipping $BACKUP_ZIP_NAME"
+show_colored_message info "Unzipping $BACKUP_ZIP_NAME"
 unzip -o "$IMPORT_DIR/$BACKUP_ZIP_NAME" -d "$IMPORT_DIR"
 
 if [ $? -ne 0 ]; then
@@ -201,6 +201,10 @@ fi
 BACKUP_FOLDER_NAME="${BACKUP_ZIP_NAME%.zip}"
 
 show_colored_message info "Copying backup folder $BACKUP_FOLDER_NAME to container $MONGO_CONTAINER:/import/"
+if ! docker exec "$MONGO_CONTAINER" [ -d "/import" ]; then
+  docker exec "$MONGO_CONTAINER" mkdir /import
+fi
+
 docker cp "$IMPORT_DIR/$BACKUP_FOLDER_NAME" "$MONGO_CONTAINER:/import/$BACKUP_FOLDER_NAME"
 
 if [ $? -ne 0 ]; then
@@ -232,10 +236,10 @@ if [ -n "$MONGO_DBNAME" ]; then
 fi
 
 # Run mongorestore inside container
-echo "Running mongorestore inside container..."
+show_colored_message info "Running mongorestore inside container..."
 
-docker exec "$MONGO_CONTAINER" bash -c \
-"mongorestore $MONGO_AUTH --host localhost --port $MONGO_PORT $MONGO_DB_ARG /import/$BACKUP_FOLDER_NAME"
+result=$(docker exec "$MONGO_CONTAINER" bash -c \
+"mongorestore $MONGO_AUTH --host localhost --port $MONGO_PORT $MONGO_DB_ARG /import/$BACKUP_FOLDER_NAME" 2>&1)
 
 if [ $? -ne 0 ]; then
   if [ "${NOTIFICATION_EMAIL}" = "true" ]; then
@@ -249,6 +253,8 @@ if [ $? -ne 0 ]; then
       --subject "⛔ MongoDB Import Failed - mongorestore Error" \
       --body "mongorestore command failed inside container at $TIMESTAMP."
   else
+
+    show_colored_message error $result
     show_colored_message error "mongorestore command failed inside container at $TIMESTAMP."
   fi
   exit 1
