@@ -41,7 +41,7 @@ done
 if [[ ! -f "$CONFIG_FILE" ]]; then
     show_colored_message warning "Config file '$CONFIG_FILE' not found."
     show_colored_message info "Generating demo config file..."
-    show_colored_message info "$DEMO_CONFIG_CONTENT" > "$CONFIG_FILE"
+    echo "$DEMO_CONFIG_CONTENT" > "$CONFIG_FILE"
     show_colored_message info "Demo config created at: $CONFIG_FILE"
     show_colored_message default "Please edit it and run again."
     exit 0
