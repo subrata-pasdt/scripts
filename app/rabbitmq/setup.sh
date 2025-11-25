@@ -281,8 +281,7 @@ handle_menu_selection() {
             echo ""
             echo "➡ Creating Users and Assigning Permissions..."
             echo ""
-            # TODO: Call setup_users function (Task 9)
-            echo "⚠️  User management not yet implemented"
+            setup_users
             return 0
             ;;
         3)
@@ -753,84 +752,37 @@ validate_json_structure() {
     fi
     
     # Check for required arrays
-    local users_exists
-    users_exists=$(jq 'has("users")' "$config_file")
-    if [ "$users_exists" != "true" ]; then
+    if ! jq -e '.users' "$config_file" >/dev/null 2>&1; then
         echo "❌ Missing required field: 'users' array"
         return 1
     fi
     
-    local vhosts_exists
-    vhosts_exists=$(jq 'has("vhosts")' "$config_file")
-    if [ "$vhosts_exists" != "true" ]; then
+    if ! jq -e '.vhosts' "$config_file" >/dev/null 2>&1; then
         echo "❌ Missing required field: 'vhosts' array"
         return 1
     fi
     
-    local permissions_exists
-    permissions_exists=$(jq 'has("permissions")' "$config_file")
-    if [ "$permissions_exists" != "true" ]; then
+    if ! jq -e '.permissions' "$config_file" >/dev/null 2>&1; then
         echo "❌ Missing required field: 'permissions' array"
         return 1
     fi
     
-    # Validate users array structure
-    local users_count
-    users_count=$(jq '.users | length' "$config_file")
+    # Validate users array structure - check all at once
+    local invalid_users
+    invalid_users=$(jq -r '.users | to_entries[] | select(.value | has("name") and has("password") and has("tags") | not) | .key' "$config_file" 2>/dev/null)
     
-    if [ "$users_count" -gt 0 ]; then
-        # Check each user has required fields
-        local i=0
-        while [ $i -lt "$users_count" ]; do
-            local has_name
-            has_name=$(jq ".users[$i] | has(\"name\")" "$config_file")
-            if [ "$has_name" != "true" ]; then
-                echo "❌ User at index $i is missing required field: 'name'"
-                return 1
-            fi
-            
-            local has_password
-            has_password=$(jq ".users[$i] | has(\"password\")" "$config_file")
-            if [ "$has_password" != "true" ]; then
-                echo "❌ User at index $i is missing required field: 'password'"
-                return 1
-            fi
-            
-            local has_tags
-            has_tags=$(jq ".users[$i] | has(\"tags\")" "$config_file")
-            if [ "$has_tags" != "true" ]; then
-                echo "❌ User at index $i is missing required field: 'tags'"
-                return 1
-            fi
-            
-            i=$((i + 1))
-        done
+    if [ -n "$invalid_users" ]; then
+        echo "❌ Users at indices $invalid_users are missing required fields (name, password, tags)"
+        return 1
     fi
     
-    # Validate permissions array structure
-    local permissions_count
-    permissions_count=$(jq '.permissions | length' "$config_file")
+    # Validate permissions array structure - check all at once
+    local invalid_permissions
+    invalid_permissions=$(jq -r '.permissions | to_entries[] | select(.value | has("user") and has("hosts") | not) | .key' "$config_file" 2>/dev/null)
     
-    if [ "$permissions_count" -gt 0 ]; then
-        # Check each permission has required fields
-        local i=0
-        while [ $i -lt "$permissions_count" ]; do
-            local has_user
-            has_user=$(jq ".permissions[$i] | has(\"user\")" "$config_file")
-            if [ "$has_user" != "true" ]; then
-                echo "❌ Permission at index $i is missing required field: 'user'"
-                return 1
-            fi
-            
-            local has_hosts
-            has_hosts=$(jq ".permissions[$i] | has(\"hosts\")" "$config_file")
-            if [ "$has_hosts" != "true" ]; then
-                echo "❌ Permission at index $i is missing required field: 'hosts'"
-                return 1
-            fi
-            
-            i=$((i + 1))
-        done
+    if [ -n "$invalid_permissions" ]; then
+        echo "❌ Permissions at indices $invalid_permissions are missing required fields (user, hosts)"
+        return 1
     fi
     
     echo "✅ JSON structure is valid"
@@ -905,6 +857,214 @@ parse_config() {
     
     echo ""
     echo "✅ Configuration file parsed successfully"
+    echo ""
+    
+    return 0
+}
+
+# ============================================================================
+# USER MANAGER MODULE
+# ============================================================================
+
+# Prompt user for config file path
+prompt_for_config_file() {
+    local config_path
+    
+    echo "➡ Please provide the path to your configuration file"
+    echo ""
+    read -p "Config file path: " config_path
+    
+    echo "$config_path"
+}
+
+# Process users from config - delete existing and create new
+process_users() {
+    local config_file=$1
+    
+    echo "➡ Processing users..."
+    echo ""
+    
+    local users
+    if ! users=$(extract_users "$config_file"); then
+        echo "❌ Failed to extract users from config"
+        return 1
+    fi
+    
+    # Process each user
+    while IFS= read -r user_json; do
+        local username
+        local password
+        local tags
+        
+        username=$(echo "$user_json" | jq -r '.name')
+        password=$(echo "$user_json" | jq -r '.password')
+        tags=$(echo "$user_json" | jq -r '.tags')
+        
+        echo "➡ Processing user: $username"
+        
+        # Check if user exists and delete if so
+        if user_exists "$username"; then
+            echo "  ➡ User exists, deleting..."
+            if delete_user "$username"; then
+                echo "  ✅ Existing user deleted"
+            else
+                echo "  ❌ Failed to delete existing user"
+                continue
+            fi
+        fi
+        
+        # Create the user
+        echo "  ➡ Creating user..."
+        if create_user "$username" "$password" "$tags"; then
+            echo "  ✅ User created: $username (tags: $tags)"
+        else
+            echo "  ❌ Failed to create user: $username"
+        fi
+        
+        echo ""
+    done <<< "$users"
+    
+    echo "✅ User processing complete"
+    echo ""
+}
+
+# Process vhosts from config
+process_vhosts() {
+    local config_file=$1
+    
+    echo "➡ Processing vhosts..."
+    echo ""
+    
+    local vhosts
+    if ! vhosts=$(extract_vhosts "$config_file"); then
+        echo "❌ Failed to extract vhosts from config"
+        return 1
+    fi
+    
+    # Process each vhost
+    while IFS= read -r vhost; do
+        [ -z "$vhost" ] && continue
+        
+        echo "🏠 Processing vhost: $vhost"
+        
+        # Check if vhost exists
+        if vhost_exists "$vhost"; then
+            echo "  ➡ Vhost already exists, skipping creation"
+        else
+            # Create the vhost
+            echo "  ➡ Creating vhost..."
+            if create_vhost "$vhost"; then
+                echo "  ✅ Vhost created: $vhost"
+            else
+                echo "  ❌ Failed to create vhost: $vhost"
+            fi
+        fi
+        
+        echo ""
+    done <<< "$vhosts"
+    
+    echo "✅ Vhost processing complete"
+    echo ""
+}
+
+# Process permissions from config
+process_permissions() {
+    local config_file=$1
+    
+    echo "➡ Processing permissions..."
+    echo ""
+    
+    local permissions
+    if ! permissions=$(extract_permissions "$config_file"); then
+        echo "❌ Failed to extract permissions from config"
+        return 1
+    fi
+    
+    # Process each permission entry
+    while IFS= read -r perm_json; do
+        local username
+        local hosts
+        
+        username=$(echo "$perm_json" | jq -r '.user')
+        hosts=$(echo "$perm_json" | jq -r '.hosts[]')
+        
+        # Check if user exists
+        if ! user_exists "$username"; then
+            echo "❌ User does not exist: $username"
+            echo "   Skipping permissions for this user"
+            echo ""
+            continue
+        fi
+        
+        # Process each host for this user
+        while IFS= read -r vhost; do
+            [ -z "$vhost" ] && continue
+            
+            echo "🔑 Setting permissions for user '$username' on vhost '$vhost'"
+            
+            if set_permissions "$vhost" "$username"; then
+                echo "  ✅ Permissions set: $username @ $vhost (configure: .*, write: .*, read: .*)"
+            else
+                echo "  ❌ Failed to set permissions: $username @ $vhost"
+            fi
+            
+            echo ""
+        done <<< "$hosts"
+        
+    done <<< "$permissions"
+    
+    echo "✅ Permission processing complete"
+    echo ""
+}
+
+# Main user setup function - orchestrates config file prompt, parsing, and processing
+setup_users() {
+    echo "➡ Starting user and permission setup..."
+    echo ""
+    
+    # Prompt for config file
+    local config_file
+    config_file=$(prompt_for_config_file)
+    
+    echo ""
+    
+    # Check if file exists
+    if [ ! -f "$config_file" ]; then
+        echo "❌ Config file not found: $config_file"
+        echo "   Please ensure the file exists and try again"
+        return 1
+    fi
+    
+    echo "✅ Config file found: $config_file"
+    echo ""
+    
+    # Parse and validate config
+    if ! parse_config "$config_file"; then
+        return 1
+    fi
+    
+    # Process users
+    if ! process_users "$config_file"; then
+        echo "❌ User processing failed"
+        return 1
+    fi
+    
+    # Process vhosts
+    if ! process_vhosts "$config_file"; then
+        echo "❌ Vhost processing failed"
+        return 1
+    fi
+    
+    # Process permissions
+    if ! process_permissions "$config_file"; then
+        echo "❌ Permission processing failed"
+        return 1
+    fi
+    
+    echo "✅ User and permission setup complete!"
+    echo ""
+    echo "📊 You can verify the configuration in the Management UI:"
+    echo "   http://localhost:15672"
     echo ""
     
     return 0
