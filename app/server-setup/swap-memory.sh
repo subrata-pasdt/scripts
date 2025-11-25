@@ -38,7 +38,7 @@ fi
 show_colored_message info "Setting correct permissions..."
 sudo chmod 600 /swapfile
 
-show_colored_message "Creating swap area..."
+show_colored_message info "Creating swap area..."
 sudo mkswap /swapfile
 
 show_colored_message info "Enabling swap..."
