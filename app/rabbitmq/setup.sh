@@ -8,6 +8,7 @@ set -euo pipefail
 # Global variables
 RABBITMQ_API="http://127.0.0.1:15672/api"
 ENV_FILE=".env"
+DOCKER_COMPOSE_CMD=""  # Will be set by detect_docker_compose_command()
 
 # ============================================================================
 # DEPENDENCY CHECKER MODULE
@@ -29,6 +30,21 @@ check_docker_running() {
         return 1
     fi
     return 0
+}
+
+# Detect which Docker Compose command to use
+detect_docker_compose_command() {
+    # Try 'docker compose' (newer Docker CLI plugin) first
+    if docker compose version &> /dev/null; then
+        DOCKER_COMPOSE_CMD="docker compose"
+        return 0
+    # Fall back to 'docker-compose' (standalone tool)
+    elif command -v docker-compose &> /dev/null; then
+        DOCKER_COMPOSE_CMD="docker-compose"
+        return 0
+    else
+        return 1
+    fi
 }
 
 # Main dependency verification function
@@ -58,14 +74,14 @@ check_dependencies() {
         fi
     fi
     
-    # Check Docker Compose
-    if ! check_command docker-compose && ! docker compose version &> /dev/null; then
+    # Check Docker Compose and detect which command to use
+    if ! detect_docker_compose_command; then
         echo "❌ Docker Compose is not installed"
         echo "   Install Docker Compose: https://docs.docker.com/compose/install/"
         missing_deps+=("docker-compose")
         all_ok=false
     else
-        echo "✅ Docker Compose is installed"
+        echo "✅ Docker Compose is installed ($DOCKER_COMPOSE_CMD)"
     fi
     
     # Check jq
@@ -404,7 +420,7 @@ start_container() {
         if [[ "$restart_choice" =~ ^[Yy]$ ]]; then
             echo ""
             echo "➡ Stopping existing container..."
-            docker-compose down
+            $DOCKER_COMPOSE_CMD down
             echo "✅ Container stopped"
             echo ""
         else
@@ -420,17 +436,17 @@ start_container() {
     echo ""
     
     # Start the container
-    echo "➡ Starting RabbitMQ container with docker-compose..."
+    echo "➡ Starting RabbitMQ container with Docker Compose..."
     echo ""
     
-    if docker-compose up -d; then
+    if $DOCKER_COMPOSE_CMD up -d; then
         echo ""
         echo "✅ Container started successfully"
         echo ""
     else
         echo ""
         echo "❌ Failed to start container"
-        echo "   Check docker-compose logs for details: docker-compose logs"
+        echo "   Check logs for details: $DOCKER_COMPOSE_CMD logs"
         exit 1
     fi
     
