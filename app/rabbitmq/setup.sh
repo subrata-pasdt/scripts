@@ -108,7 +108,8 @@ check_dependencies() {
 generate_password() {
     local length=16
     # Generate 16-character alphanumeric password
-    tr -dc 'A-Za-z0-9' < /dev/urandom | head -c "$length"
+    # Use || true to prevent pipefail from causing issues when head closes the pipe
+    tr -dc 'A-Za-z0-9' < /dev/urandom 2>/dev/null | head -c "$length" || true
 }
 
 # Prompt user for a value with a descriptive message
@@ -462,37 +463,52 @@ start_container() {
 
 # Download the rabbitmq_delayed_message_exchange plugin from GitHub
 download_plugin() {
-    local plugin_url="https://github.com/rabbitmq/rabbitmq-delayed-message-exchange/releases/download/v3.8.17/rabbitmq_delayed_message_exchange-3.8.17.ez"
-    local plugin_file="rabbitmq_delayed_message_exchange-3.8.17.ez"
+    local plugin_url="https://github.com/rabbitmq/rabbitmq-delayed-message-exchange/releases/download/3.8.17/rabbitmq_delayed_message_exchange-3.8.17.8f537ac.ez"
+    local plugin_file="rabbitmq_delayed_message_exchange-3.8.17.8f537ac.ez"
     
     echo "➡ Downloading delayed message exchange plugin..."
     
-    if curl -L -o "$plugin_file" "$plugin_url" 2>&1 | grep -q "Failed\|error"; then
+    # Download with curl, checking exit code
+    if ! curl -L -f -o "$plugin_file" "$plugin_url" 2>&1; then
         echo "❌ Failed to download plugin from $plugin_url"
         echo "   Please check your internet connection and try again"
         return 1
     fi
     
+    # Verify file was downloaded and has content
     if [ ! -f "$plugin_file" ]; then
         echo "❌ Plugin file not found after download"
         return 1
     fi
     
-    echo "✅ Plugin downloaded: $plugin_file"
+    if [ ! -s "$plugin_file" ]; then
+        echo "❌ Plugin file is empty"
+        rm -f "$plugin_file"
+        return 1
+    fi
+    
+    echo "✅ Plugin downloaded: $plugin_file ($(stat -c%s "$plugin_file" 2>/dev/null || stat -f%z "$plugin_file" 2>/dev/null) bytes)"
     return 0
 }
 
 # Copy the plugin file into the RabbitMQ container
 copy_plugin_to_container() {
-    local plugin_file="rabbitmq_delayed_message_exchange-3.8.17.ez"
+    local plugin_file="rabbitmq_delayed_message_exchange-3.8.17.8f537ac.ez"
     local container_name="rabbitmq"
     local container_path="/opt/rabbitmq/plugins/"
     
     echo "➡ Copying plugin to container..."
     
-    if ! docker cp "$plugin_file" "$container_name:$container_path" 2>&1; then
-        echo "❌ Failed to copy plugin to container"
+    # Check if container is running
+    if ! docker ps --format "{{.Names}}" | grep -q "^${container_name}$"; then
+        echo "❌ Container '$container_name' is not running"
         echo "   Please ensure the container is running: docker ps"
+        return 1
+    fi
+    
+    # Copy the plugin file
+    if ! docker cp "$plugin_file" "$container_name:$container_path" 2>/dev/null; then
+        echo "❌ Failed to copy plugin to container"
         return 1
     fi
     
@@ -507,9 +523,11 @@ enable_plugin() {
     
     echo "➡ Enabling plugin in RabbitMQ..."
     
-    if ! docker exec "$container_name" rabbitmq-plugins enable "$plugin_name" 2>&1; then
+    # Enable the plugin and capture output
+    local output
+    if ! output=$(docker exec "$container_name" rabbitmq-plugins enable "$plugin_name" 2>&1); then
         echo "❌ Failed to enable plugin"
-        echo "   Check container logs: docker logs $container_name"
+        echo "   Error: $output"
         return 1
     fi
     
@@ -517,34 +535,35 @@ enable_plugin() {
     return 0
 }
 
-# Verify the plugin is active via the Management API
+# Verify the plugin is active via rabbitmq-plugins command
 verify_plugin() {
     local plugin_name="rabbitmq_delayed_message_exchange"
+    local container_name="rabbitmq"
     
     echo "➡ Verifying plugin status..."
     
-    local plugins_response
-    if ! plugins_response=$(get_plugins); then
-        echo "❌ Failed to retrieve plugin list from API"
+    # Use rabbitmq-plugins list to check if plugin is enabled
+    local plugin_list
+    if ! plugin_list=$(docker exec "$container_name" rabbitmq-plugins list 2>&1); then
+        echo "❌ Failed to retrieve plugin list"
         return 1
     fi
     
-    # Check if the plugin is in the list and is enabled
-    local plugin_status
-    plugin_status=$(echo "$plugins_response" | jq -r ".[] | select(.name == \"$plugin_name\") | .enabled")
-    
-    if [ "$plugin_status" = "true" ]; then
+    # Check if the plugin is in the list and is enabled (marked with [E*])
+    if echo "$plugin_list" | grep -q "\[E.\?] $plugin_name"; then
         echo "✅ Plugin verified: $plugin_name is enabled"
         return 0
     else
         echo "❌ Plugin verification failed: $plugin_name is not enabled"
+        echo "   Plugin list output:"
+        echo "$plugin_list" | grep "$plugin_name" || echo "   Plugin not found in list"
         return 1
     fi
 }
 
 # Main function to orchestrate plugin installation
 install_delayed_plugin() {
-    local plugin_file="rabbitmq_delayed_message_exchange-3.8.17.ez"
+    local plugin_file="rabbitmq_delayed_message_exchange-3.8.17.8f537ac.ez"
     
     echo ""
     echo "➡ Installing delayed message exchange plugin..."
@@ -715,17 +734,12 @@ set_permissions() {
     fi
 }
 
-# Get list of plugins
+# Get list of plugins (kept for potential future use)
 get_plugins() {
-    local response
-    response=$(api_call "GET" "plugins")
-    
-    if [ $? -eq 0 ]; then
-        echo "$response"
-        return 0
-    else
-        return 1
-    fi
+    # Note: The /api/plugins endpoint is not available in RabbitMQ 3.8
+    # Use rabbitmq-plugins list command instead (see verify_plugin function)
+    echo "❌ API endpoint /api/plugins not available in RabbitMQ 3.8"
+    return 1
 }
 
 # ============================================================================
@@ -870,8 +884,6 @@ parse_config() {
 prompt_for_config_file() {
     local config_path
     
-    echo "➡ Please provide the path to your configuration file"
-    echo ""
     read -p "Config file path: " config_path
     
     echo "$config_path"
