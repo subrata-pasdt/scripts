@@ -2,7 +2,7 @@
 
 # MongoDB Replica Set Setup - Bootstrap Module
 # This script can be executed directly from GitHub or locally
-# Usage: bash <(curl -fsSL https://raw.githubusercontent.com/[user]/[repo]/[branch]/initiate.sh)
+# Usage: bash <(curl -fsSL https://raw.githubusercontent.com/[user]/[repo]/[branch]/app/mongo-setup/initiate.sh)
 
 # ============================================================================
 # Configuration Variables
@@ -108,10 +108,9 @@ setup_workspace() {
     
     # Define directories to create
     local directories=(
-        "scripts"
+        "configs"
         "secrets"
         "data"
-        "logs"
     )
     
     # Create each directory
