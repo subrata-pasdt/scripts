@@ -46,24 +46,46 @@ EOL
 CONTAINER_NAME=$1
 
 # Check if the required arguments are provided
-if [ "$#" -ne 1 ]; then
-  mapfile -t options < <(grep "container_name" docker-compose.yaml | cut -d ":" -f2 | tr -d ' ')
-  select container in "${options[@]}" "Exit"; do
-    if [[ "$container" == "Exit" ]]; then
-      show_colored_message info "Exiting."
-      exit 0
-    fi
+# if [ "$#" -ne 1 ]; then
+  # mapfile -t options < <(grep "container_name" docker-compose.yaml | cut -d ":" -f2 | tr -d ' ')
+  # select container in "${options[@]}" "Exit"; do
+  #   if [[ "$container" == "Exit" ]]; then
+  #     show_colored_message info "Exiting."
+  #     exit 0
+  #   fi
 
-    if [[ -n "$container" ]]; then
-      show_colored_message info "You selected container: $container"
-      CONTAINER_NAME=$container
-      break
-    else
-      show_colored_message error "Invalid selection. Try again."
-    fi
-  done
+  #   if [[ -n "$container" ]]; then
+  #     show_colored_message info "You selected container: $container"
+  #     CONTAINER_NAME=$container
+  #     break
+  #   else
+  #     show_colored_message error "Invalid selection. Try again."
+  #   fi
+  # done
+# fi
+
+# Get all container names from docker-compose
+mapfile -t options < <(grep "container_name" docker-compose.yaml | cut -d ":" -f2 | tr -d ' ')
+
+PRIMARY_CONTAINER=""
+
+for container in "${options[@]}"; do
+  is_primary=$(docker exec "$container" mongosh --quiet --eval \
+    "db.adminCommand({ hello: 1 }).isWritablePrimary" 2>/dev/null)
+
+  if [[ "$is_primary" == "true" ]]; then
+    PRIMARY_CONTAINER="$container"
+    break
+  fi
+done
+
+if [[ -n "$PRIMARY_CONTAINER" ]]; then
+  show_colored_message info "Primary MongoDB container detected: $PRIMARY_CONTAINER"
+  CONTAINER_NAME="$PRIMARY_CONTAINER"
+else
+  show_colored_message error "No primary MongoDB container found."
+  exit 1
 fi
-
 
 # Load environment variables from .env file
 export $(grep -v '^#' .env | xargs)
