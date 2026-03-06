@@ -143,12 +143,7 @@ fi
 
 # getting primary mongo container
 
-read -ra MONGO_ARR <<< "${MONGO_CONTAINERS}"
-
-
-show_colored_message info ${MONGO_ARR[@]}
-
-for host in "${MONGO_ARR[@]}"; do
+for host in "${MONGO_CONTAINERS[@]}"; do
     host=$(echo "$host" | xargs)
     echo "$host"
     # Run command using sh (Mongo image doesn't have bash)
