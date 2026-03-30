@@ -9,7 +9,9 @@
 # ============================================================================
 
 
-echo "bash <(curl -fsSL https://raw.githubusercontent.com/subrata-pasdt/scripts/main/app/mongo-setup/initiate.sh" >> initiate-config.sh
+if [ ! -f initiate-config.sh ]; then
+  echo 'bash <(curl -fsSL https://raw.githubusercontent.com/subrata-pasdt/scripts/main/app/mongo-setup/initiate.sh)' >> initiate-config.sh
+fi
 # GitHub repository configuration
 GITHUB_REPO_BASE_URL="https://raw.githubusercontent.com/subrata-pasdt/scripts/main"
 GITHUB_SCRIPTS_BASE_URL="${GITHUB_REPO_BASE_URL}/app/mongo-setup/scripts"
