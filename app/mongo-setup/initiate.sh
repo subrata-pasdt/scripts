@@ -10,7 +10,7 @@
 
 
 if [ ! -f initiate-config.sh ]; then
-  echo 'bash <(curl -fsSL https://raw.githubusercontent.com/subrata-pasdt/scripts/main/app/mongo-setup/initiate.sh)' >> initiate-config.sh
+  echo 'bash <(curl -fsSL https://raw.githubusercontent.com/subrata-pasdt/scripts/main/app/mongo-setup/initiate.sh)' > initiate-config.sh
 fi
 # GitHub repository configuration
 GITHUB_REPO_BASE_URL="https://raw.githubusercontent.com/subrata-pasdt/scripts/main"
