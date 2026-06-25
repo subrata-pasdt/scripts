@@ -250,50 +250,45 @@ echo
 
 create_compose() {
 
+    local persistence_cmd=""
 
-local persistence_cmd=""
+    if [ "$ENABLE_PERSISTENCE" = "true" ]; then
+        persistence_cmd="--appendonly yes"
+    fi
 
-if [ "$ENABLE_PERSISTENCE" = "true" ]; then
-    persistence_cmd="--appendonly yes"
-fi
-
-cat > docker-compose.yml <<EOF
-
-
-services:
-
-redis:
-image: redis:7-alpine
-container_name: redis
-restart: unless-stopped
-command: >
-redis-server
---requirepass ${REDIS_PASSWORD}
-$persistence_cmd
-ports:
-- "${REDIS_BIND}:6379:6379"
-volumes:
-- ./redis-data:/data
-EOF
+    cat > docker-compose.yml <<EOF
+    services:
+        redis:
+            image: redis:7-alpine
+            container_name: redis
+            restart: unless-stopped
+            command: >
+                redis-server
+                --requirepass ${REDIS_PASSWORD}
+            $persistence_cmd
+            ports:
+                - "${REDIS_BIND}:6379:6379"
+            volumes:
+                - ./redis-data:/data
+    EOF
 
 
-if [ "${ENABLE_UI}" = "true" ]; then
+    if [ "${ENABLE_UI}" = "true" ]; then
+
+    cat >> docker-compose.yml <<EOF
+
+        redisinsight:
+            image: redis/redisinsight:latest
+            container_name: redisinsight
+            restart: unless-stopped
+            ports:
+                - "${UI_BIND}:5540:5540"
+            volumes:
+                - ./redisinsight:/data
+    EOF
 
 
-cat >> docker-compose.yml <<EOF
-
-redisinsight:
-image: redis/redisinsight:latest
-container_name: redisinsight
-restart: unless-stopped
-ports:
-- "${UI_BIND}:5540:5540"
-volumes:
-- ./redisinsight:/data
-EOF
-
-
-fi
+    fi
 
 
 }
@@ -306,18 +301,17 @@ fi
 
 apply_acl_user() {
 
+    if [ -z "${ACL_USER:-}" ]; then
+        return
+    fi
 
-if [ -z "${ACL_USER:-}" ]; then
-    return
-fi
+    echo "➡ Applying ACL user..."
 
-echo "➡ Applying ACL user..."
-
-docker exec redis redis-cli \
-    -a "$REDIS_PASSWORD" \
-    ACL SETUSER "$ACL_USER" on ">$ACL_PASSWORD" allcommands allkeys
-
-echo "✅ ACL user applied"
+    docker exec redis redis-cli \
+        -a "$REDIS_PASSWORD" \
+        ACL SETUSER "$ACL_USER" on ">$ACL_PASSWORD" allcommands allkeys
+        
+    echo "✅ ACL user applied"
 
 
 }
@@ -330,22 +324,20 @@ echo "✅ ACL user applied"
 
 health_check() {
 
+    echo
+    echo "➡ Running Redis health check..."
+    if ! check_command redis-cli; then
+        echo "⚠ redis-cli not installed"
+        return
+    fi
 
-echo
-echo "➡ Running Redis health check..."
+    if redis-cli -h 127.0.0.1 -a "$REDIS_PASSWORD" ping 2>/dev/null | grep -q PONG; then
+        echo "✅ Redis healthy"
+    else
+        echo "❌ Redis unhealthy"
+    fi
 
-if ! check_command redis-cli; then
-    echo "⚠ redis-cli not installed"
-    return
-fi
-
-if redis-cli -h 127.0.0.1 -a "$REDIS_PASSWORD" ping 2>/dev/null | grep -q PONG; then
-    echo "✅ Redis healthy"
-else
-    echo "❌ Redis unhealthy"
-fi
-
-echo
+    echo
 
 
 }
@@ -358,67 +350,50 @@ echo
 
 container_running() {
 
-
-docker ps \
-    --filter name=redis \
-    --filter status=running \
-    --format "{{.Names}}" | grep -q "^redis$"
-
+    docker ps \
+        --filter name=redis \
+        --filter status=running \
+        --format "{{.Names}}" | grep -q "^redis$"
 
 }
 
 start_redis() {
 
-
-load_env
-
-create_compose
-
-echo
-echo "➡ Starting Redis..."
-
-$DOCKER_COMPOSE_CMD up -d
-
-sleep 5
-
-apply_acl_user
-
-health_check
-
-echo
-echo "Redis Endpoint:"
-echo "redis://:${REDIS_PASSWORD}@localhost:6379"
-
-if [ "$ENABLE_UI" = "true" ]; then
+    load_env
+    create_compose
     echo
-    echo "RedisInsight:"
-    echo "http://localhost:5540"
-fi
-
-echo
-
+    echo "➡ Starting Redis..."
+    $DOCKER_COMPOSE_CMD up -d
+    sleep 5
+    apply_acl_user
+    health_check
+    echo
+    echo "Redis Endpoint:"
+    echo "redis://:${REDIS_PASSWORD}@localhost:6379"
+    if [ "$ENABLE_UI" = "true" ]; then
+        echo
+        echo "RedisInsight:"
+        echo "http://localhost:5540"
+    fi
+    echo
 
 }
 
 stop_redis() {
 
-
-if [ -f docker-compose.yml ]; then
-    $DOCKER_COMPOSE_CMD down
-    echo "✅ Redis stopped"
-else
-    echo "No compose file found"
-fi
+    if [ -f docker-compose.yml ]; then
+        $DOCKER_COMPOSE_CMD down
+        echo "✅ Redis stopped"
+    else
+        echo "No compose file found"
+    fi
 
 
 }
 
 restart_redis() {
-
-
-stop_redis
-start_redis
-
+    stop_redis
+    start_redis
 
 }
 
@@ -429,32 +404,30 @@ start_redis
 # ============================================================================
 
 show_credentials() {
+    load_env
 
-
-load_env
-
-echo
-echo "══════════════════════════════════════"
-echo "Redis Credentials"
-echo "══════════════════════════════════════"
-echo
-
-echo "Password: $REDIS_PASSWORD"
-echo "Redis Bind: $REDIS_BIND"
-
-if [ "$ENABLE_UI" = "true" ]; then
-    echo "RedisInsight: enabled"
-    echo "UI Bind: $UI_BIND"
-    echo "URL: http://localhost:5540"
-else
-    echo "RedisInsight: disabled"
-fi
-
-if [ -n "${ACL_USER:-}" ]; then
     echo
-    echo "ACL User: $ACL_USER"
-    echo "ACL Password: $ACL_PASSWORD"
-fi
+    echo "══════════════════════════════════════"
+    echo "Redis Credentials"
+    echo "══════════════════════════════════════"
+    echo
+
+    echo "Password: $REDIS_PASSWORD"
+    echo "Redis Bind: $REDIS_BIND"
+
+    if [ "$ENABLE_UI" = "true" ]; then
+        echo "RedisInsight: enabled"
+        echo "UI Bind: $UI_BIND"
+        echo "URL: http://localhost:5540"
+    else
+        echo "RedisInsight: disabled"
+    fi
+
+    if [ -n "${ACL_USER:-}" ]; then
+        echo
+        echo "ACL User: $ACL_USER"
+        echo "ACL Password: $ACL_PASSWORD"
+    fi
 
 echo
 
@@ -469,26 +442,21 @@ echo
 
 regenerate_password() {
 
+    load_env
+    local new_pass
+    new_pass=$(generate_password)
+    update_env_var REDIS_PASSWORD "$new_pass"
+    REDIS_PASSWORD="$new_pass"
 
-load_env
+    echo
+    echo "✅ Password regenerated"
+    echo "New Password: $new_pass"
+    echo
 
-local new_pass
-new_pass=$(generate_password)
-
-update_env_var REDIS_PASSWORD "$new_pass"
-
-REDIS_PASSWORD="$new_pass"
-
-echo
-echo "✅ Password regenerated"
-echo "New Password: $new_pass"
-echo
-
-if container_running; then
-    echo "Restarting Redis..."
-    restart_redis
-fi
-
+    if container_running; then
+        echo "Restarting Redis..."
+        restart_redis
+    fi
 
 }
 
@@ -585,15 +553,14 @@ done
 show_banner() {
 
 cat <<'EOF'
+    ██████╗ ███████╗██████╗ ██╗███████╗
+    ██╔══██╗██╔════╝██╔══██╗██║██╔════╝
+    ██████╔╝█████╗  ██║  ██║██║███████╗
+    ██╔══██╗██╔══╝  ██║  ██║██║╚════██║
+    ██║  ██║███████╗██████╔╝██║███████║
+    ╚═╝  ╚═╝╚══════╝╚═════╝ ╚═╝╚══════╝
 
-██████╗ ███████╗██████╗ ██╗███████╗
-██╔══██╗██╔════╝██╔══██╗██║██╔════╝
-██████╔╝█████╗  ██║  ██║██║███████╗
-██╔══██╗██╔══╝  ██║  ██║██║╚════██║
-██║  ██║███████╗██████╔╝██║███████║
-╚═╝  ╚═╝╚══════╝╚═════╝ ╚═╝╚══════╝
-
-Redis Setup Automation Tool
+    Redis Setup Automation Tool
 
 EOF
 
@@ -606,17 +573,10 @@ EOF
 # ============================================================================
 
 main() {
-
-
-show_banner
-
-check_dependencies
-
-load_env
-
-run_menu
-
-
+    show_banner
+    check_dependencies
+    load_env
+    run_menu
 }
 
 main "$@"
