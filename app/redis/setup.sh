@@ -38,21 +38,21 @@ DOCKER_COMPOSE_CMD=""
 # ============================================================================
 
 check_command() {
-command -v "$1" >/dev/null 2>&1
+    command -v "$1" >/dev/null 2>&1
 }
 
 check_docker_running() {
-docker info >/dev/null 2>&1
+    docker info >/dev/null 2>&1
 }
 
 detect_docker_compose_command() {
-if docker compose version >/dev/null 2>&1; then
-DOCKER_COMPOSE_CMD="docker compose"
-elif command -v docker-compose >/dev/null 2>&1; then
-DOCKER_COMPOSE_CMD="docker-compose"
-else
-return 1
-fi
+    if docker compose version >/dev/null 2>&1; then
+        DOCKER_COMPOSE_CMD="docker compose"
+    elif command -v docker-compose >/dev/null 2>&1; then
+        DOCKER_COMPOSE_CMD="docker-compose"
+    else
+        return 1
+    fi
 }
 
 check_dependencies() {
@@ -97,9 +97,7 @@ check_dependencies() {
 }
 
 # ============================================================================
-
 # PASSWORD GENERATOR
-
 # ============================================================================
 
 generate_password() {
@@ -107,9 +105,7 @@ generate_password() {
 }
 
 # ============================================================================
-
 # ENVIRONMENT MANAGER
-
 # ============================================================================
 
 create_env() {
@@ -243,51 +239,83 @@ setup_acl_user() {
 # COMPOSE GENERATOR
 
 # ============================================================================
+create_docker_compose() {
 
-create_compose() {
+    local compose_file="docker-compose.yml"
 
-    local persistence_cmd=""
+    if [ "$ENABLE_UI" = "true" ]; then
 
-    if [ "$ENABLE_PERSISTENCE" = "true" ]; then
-        persistence_cmd="--appendonly yes"
-    fi
-
-    cat > docker-compose.yml <<EOF
+        cat > "$compose_file" <<EOF
 services:
-    redis:
-        image: redis:7-alpine
-        container_name: redis
-        restart: unless-stopped
-        command: >
-            redis-server
-            --requirepass ${REDIS_PASSWORD}
-        $persistence_cmd
-        ports:
-            - "${REDIS_BIND}:6379:6379"
-        volumes:
-            - ./redis-data:/data
+  redis-stack:
+    image: redis/redis-stack:latest
+    container_name: redis-stack
+    ports:
+      - "${REDIS_BIND}:6378:6379"
+      - "${UI_BIND}:8001:8001"
+    volumes:
+      - ./redis-data:/data
+      - ./redis.conf:/usr/local/etc/redis/redis-stack.conf
+    environment:
+      - REDIS_ARGS=--include /usr/local/etc/redis/redis-stack.conf
+    restart: always
+    networks:
+      - redis_net
+
+volumes:
+  redis-data:
+
+networks:
+  redis_net:
+    driver: bridge
 EOF
 
+    else
 
-    if [ "${ENABLE_UI}" = "true" ]; then
+        cat > "$compose_file" <<EOF
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    command: >
+      redis-server
+      --requirepass \${REDIS_PASSWORD}
+      ${PERSISTENCE_ARGS}
+    ports:
+      - "${REDIS_BIND}:6379:6379"
+    volumes:
+      - ./redis-data:/data
+    restart: always
+    networks:
+      - redis_net
 
-    cat >> docker-compose.yml <<EOF
+volumes:
+  redis-data:
 
-    redisinsight:
-        image: redis/redisinsight:latest
-        container_name: redisinsight
-        restart: unless-stopped
-        ports:
-            - "${UI_BIND}:5540:5540"
-        volumes:
-            - ./redisinsight:/data
+networks:
+  redis_net:
+    driver: bridge
 EOF
-
 
     fi
-
-
 }
+
+
+create_redis_conf() {
+
+    cat > redis.conf <<EOF
+requirepass ${REDIS_PASSWORD}
+
+appendonly yes
+appendfsync everysec
+EOF
+
+    if [ -n "${ACL_USER:-}" ]; then
+        echo "user default on >${REDIS_PASSWORD} ~* &* +@all" >> redis.conf
+        echo "user ${ACL_USER} on >${ACL_PASSWORD} ~* &* +@all" >> redis.conf
+    fi
+}
+
 
 # ============================================================================
 
@@ -320,22 +348,19 @@ apply_acl_user() {
 
 health_check() {
 
-    echo
-    echo "➡ Running Redis health check..."
-    if ! check_command redis-cli; then
-        echo "⚠ redis-cli not installed"
-        return
-    fi
+    local port
 
-    if redis-cli -h 127.0.0.1 -a "$REDIS_PASSWORD" ping 2>/dev/null | grep -q PONG; then
-        echo "✅ Redis healthy"
+    if [ "$ENABLE_UI" = "true" ]; then
+        port=6378
     else
-        echo "❌ Redis unhealthy"
+        port=6379
     fi
 
-    echo
-
-
+    redis-cli \
+        -h 127.0.0.1 \
+        -p "$port" \
+        -a "$REDIS_PASSWORD" \
+        ping
 }
 
 # ============================================================================
@@ -357,7 +382,7 @@ container_running() {
 start_redis() {
 
     load_env
-    create_compose
+    create_docker_compose
     echo
     echo "➡ Starting Redis..."
     $DOCKER_COMPOSE_CMD up -d
