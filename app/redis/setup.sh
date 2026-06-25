@@ -26,6 +26,8 @@
 
 set -euo pipefail
 
+source <(curl -fsSL https://raw.githubusercontent.com/subrata-pasdt/scripts/main/common/pasdt-devops-scripts.sh)
+
 ENV_FILE=".env"
 DOCKER_COMPOSE_CMD=""
 
@@ -54,45 +56,43 @@ fi
 }
 
 check_dependencies() {
-echo "➡ Checking dependencies..."
-echo
+    echo "➡ Checking dependencies..."
+    echo
 
+    local failed=false
 
-local failed=false
+    if ! check_command docker; then
+        echo "❌ Docker not installed"
+        failed=true
+    else
+        echo "✅ Docker installed"
+    fi
 
-if ! check_command docker; then
-    echo "❌ Docker not installed"
-    failed=true
-else
-    echo "✅ Docker installed"
-fi
+    if ! check_docker_running; then
+        echo "❌ Docker daemon not running"
+        failed=true
+    else
+        echo "✅ Docker daemon running"
+    fi
 
-if ! check_docker_running; then
-    echo "❌ Docker daemon not running"
-    failed=true
-else
-    echo "✅ Docker daemon running"
-fi
+    if ! detect_docker_compose_command; then
+        echo "❌ Docker Compose not found"
+        failed=true
+    else
+        echo "✅ Docker Compose available ($DOCKER_COMPOSE_CMD)"
+    fi
 
-if ! detect_docker_compose_command; then
-    echo "❌ Docker Compose not found"
-    failed=true
-else
-    echo "✅ Docker Compose available ($DOCKER_COMPOSE_CMD)"
-fi
+    if ! check_command redis-cli; then
+        echo "⚠ redis-cli not installed (health checks unavailable)"
+    else
+        echo "✅ redis-cli installed"
+    fi
 
-if ! check_command redis-cli; then
-    echo "⚠ redis-cli not installed (health checks unavailable)"
-else
-    echo "✅ redis-cli installed"
-fi
+    if [ "$failed" = true ]; then
+        exit 1
+    fi
 
-if [ "$failed" = true ]; then
-    exit 1
-fi
-
-echo
-
+    echo
 
 }
 
@@ -103,7 +103,7 @@ echo
 # ============================================================================
 
 generate_password() {
-tr -dc 'A-Za-z0-9' < /dev/urandom | head -c 20 || true
+    tr -dc 'A-Za-z0-9' < /dev/urandom | head -c 20 || true
 }
 
 # ============================================================================
@@ -171,41 +171,38 @@ UI_BIND=$UI_BIND
 EOF
 
 
-chmod 600 "$ENV_FILE"
+    chmod 600 "$ENV_FILE"
 
-echo
-echo "✅ Environment created"
-echo "Password: $password"
-echo
+    echo
+    echo "✅ Environment created"
+    echo "Password: $password"
+    echo
 
 
 }
 
 load_env() {
 
+    if [ ! -f "$ENV_FILE" ]; then
+        create_env
+    fi
 
-if [ ! -f "$ENV_FILE" ]; then
-    create_env
-fi
-
-set -a
-source "$ENV_FILE"
-set +a
-
+    set -a
+    source "$ENV_FILE"
+    set +a
 
 }
 
 update_env_var() {
 
+    local key=$1
+    local value=$2
 
-local key=$1
-local value=$2
-
-if grep -q "^${key}=" "$ENV_FILE"; then
-    sed -i "s|^${key}=.*|${key}=${value}|" "$ENV_FILE"
-else
-    echo "${key}=${value}" >> "$ENV_FILE"
-fi
+    if grep -q "^${key}=" "$ENV_FILE"; then
+        sed -i "s|^${key}=.*|${key}=${value}|" "$ENV_FILE"
+    else
+        echo "${key}=${value}" >> "$ENV_FILE"
+    fi
 
 
 }
@@ -218,26 +215,25 @@ fi
 
 setup_acl_user() {
 
+    echo
+    read -p "Create ACL user? (y/n): " choice
 
-echo
-read -p "Create ACL user? (y/n): " choice
+    if ! [[ "$choice" =~ ^[Yy]$ ]]; then
+        return
+    fi
 
-if ! [[ "$choice" =~ ^[Yy]$ ]]; then
-    return
-fi
+    read -p "ACL username: " ACL_USER
 
-read -p "ACL username: " ACL_USER
+    ACL_PASSWORD=$(generate_password)
 
-ACL_PASSWORD=$(generate_password)
+    update_env_var ACL_USER "$ACL_USER"
+    update_env_var ACL_PASSWORD "$ACL_PASSWORD"
 
-update_env_var ACL_USER "$ACL_USER"
-update_env_var ACL_PASSWORD "$ACL_PASSWORD"
-
-echo
-echo "ACL User Created"
-echo "Username: $ACL_USER"
-echo "Password: $ACL_PASSWORD"
-echo
+    echo
+    echo "ACL User Created"
+    echo "Username: $ACL_USER"
+    echo "Password: $ACL_PASSWORD"
+    echo
 
 
 }
@@ -257,35 +253,35 @@ create_compose() {
     fi
 
     cat > docker-compose.yml <<EOF
-    services:
-        redis:
-            image: redis:7-alpine
-            container_name: redis
-            restart: unless-stopped
-            command: >
-                redis-server
-                --requirepass ${REDIS_PASSWORD}
-            $persistence_cmd
-            ports:
-                - "${REDIS_BIND}:6379:6379"
-            volumes:
-                - ./redis-data:/data
-    EOF
+services:
+    redis:
+        image: redis:7-alpine
+        container_name: redis
+        restart: unless-stopped
+        command: >
+            redis-server
+            --requirepass ${REDIS_PASSWORD}
+        $persistence_cmd
+        ports:
+            - "${REDIS_BIND}:6379:6379"
+        volumes:
+            - ./redis-data:/data
+EOF
 
 
     if [ "${ENABLE_UI}" = "true" ]; then
 
     cat >> docker-compose.yml <<EOF
 
-        redisinsight:
-            image: redis/redisinsight:latest
-            container_name: redisinsight
-            restart: unless-stopped
-            ports:
-                - "${UI_BIND}:5540:5540"
-            volumes:
-                - ./redisinsight:/data
-    EOF
+    redisinsight:
+        image: redis/redisinsight:latest
+        container_name: redisinsight
+        restart: unless-stopped
+        ports:
+            - "${UI_BIND}:5540:5540"
+        volumes:
+            - ./redisinsight:/data
+EOF
 
 
     fi
@@ -356,6 +352,7 @@ container_running() {
         --format "{{.Names}}" | grep -q "^redis$"
 
 }
+
 
 start_redis() {
 
